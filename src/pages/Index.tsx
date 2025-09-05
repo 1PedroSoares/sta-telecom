@@ -1,12 +1,49 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React, { useEffect } from 'react';
+import { Header } from '@/components/Header';
+import { QuemSomos } from '@/components/sections/QuemSomos';
+import { Servicos } from '@/components/sections/Servicos';
+import { Clientes } from '@/components/sections/Clientes';
+import { Excelencia } from '@/components/sections/Excelencia';
+import { Login } from '@/components/sections/Login';
+import { Contato } from '@/components/sections/Contato';
+import { Orcamento } from '@/components/sections/Orcamento';
 
 const Index = () => {
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const headerHeight = 80; // Account for fixed header
+      const elementPosition = element.offsetTop - headerHeight;
+      
+      window.scrollTo({
+        top: elementPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Add smooth scroll behavior
+    document.documentElement.style.scrollBehavior = 'smooth';
+    
+    return () => {
+      document.documentElement.style.scrollBehavior = 'auto';
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header onSectionClick={scrollToSection} />
+      
+      <main>
+        <QuemSomos />
+        <Servicos />
+        <Clientes />
+        <Excelencia />
+        <Login />
+        <Contato />
+        <Orcamento />
+      </main>
     </div>
   );
 };

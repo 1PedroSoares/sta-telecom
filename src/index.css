@@ -2,41 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* STA Telecomunicações Design System - Tecnológico e Sofisticado */
 
 @layer base {
   :root {
+    /* Core Brand Colors - Tech Blue & White */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 218 17% 20%;
+    
+    /* Primary - Tech Blue */
+    --primary: 213 94% 40%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 213 94% 85%;
+    --primary-hover: 213 94% 35%;
+    
+    /* Secondary - Light Blue */
+    --secondary: 210 100% 97%;
+    --secondary-foreground: 213 94% 40%;
+    
+    /* Tech Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(213 94% 40%), hsl(213 94% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 100% 97%), hsl(213 94% 85%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 94% 40%) 0%, hsl(213 94% 50%) 50%, hsl(210 100% 97%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 100% 98%));
+    
+    /* Interactive Elements */
+    --accent: 213 94% 85%;
+    --accent-foreground: 213 94% 40%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 218 17% 50%;
+    
+    /* UI Elements */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 218 17% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    --popover-foreground: 218 17% 20%;
+    --border: 213 27% 84%;
+    --input: 213 27% 88%;
+    --ring: 213 94% 40%;
+    
+    /* Semantic Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Shadows & Effects */
+    --shadow-card: 0 4px 6px -1px hsl(213 94% 40% / 0.1), 0 2px 4px -1px hsl(213 94% 40% / 0.06);
+    --shadow-hover: 0 10px 25px -3px hsl(213 94% 40% / 0.15), 0 4px 6px -2px hsl(213 94% 40% / 0.05);
+    --shadow-glow: 0 0 20px hsl(213 94% 40% / 0.3);
+    
+    /* Spacing & Layout */
+    --radius: 0.75rem;
+    --header-height: 4rem;
+    --header-compact: 3rem;
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --sidebar-background: 0 0% 98%;
 
@@ -99,7 +122,79 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Tech Button Variants */
+  .btn-tech {
+    @apply bg-gradient-to-r from-primary to-primary-hover text-primary-foreground px-6 py-3 rounded-lg font-medium;
+    @apply transition-all duration-300 hover:shadow-[0_0_20px_hsl(213_94%_40%/0.3)] hover:scale-105;
+    @apply border border-primary/20;
+  }
+  
+  .btn-outline-tech {
+    @apply border-2 border-primary text-primary bg-transparent px-6 py-3 rounded-lg font-medium;
+    @apply transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-lg;
+  }
+  
+  /* Card Variants */
+  .card-tech {
+    @apply bg-gradient-to-br from-card to-secondary border border-border rounded-xl;
+    @apply shadow-[0_4px_6px_-1px_hsl(213_94%_40%/0.1)] transition-all duration-300;
+    @apply hover:shadow-[0_10px_25px_-3px_hsl(213_94%_40%/0.15)] hover:-translate-y-1;
+  }
+  
+  /* Interactive Background Animation */
+  .animated-bg {
+    background: linear-gradient(135deg, hsl(213 94% 40%) 0%, hsl(213 94% 50%) 50%, hsl(210 100% 97%) 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+  }
+  
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  
+  /* Parallax Elements */
+  .parallax-slow {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  /* Text Gradients */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(213 94% 40%), hsl(213 94% 50%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Smooth Transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-spring {
+    transition: var(--transition-spring);
+  }
+  
+  /* Header Animations */
+  .header-normal {
+    height: var(--header-height);
+    @apply bg-background/95 backdrop-blur-md border-b border-border/50;
+  }
+  
+  .header-compact {
+    height: var(--header-compact);
+    @apply bg-background/98 backdrop-blur-lg border-b border-border shadow-sm;
   }
 }
