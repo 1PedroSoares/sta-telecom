@@ -27,7 +27,7 @@ export const QuemSomos = () => {
       ref={sectionRef}
       className="relative min-h-screen flex items-center py-20 overflow-hidden"
       style={{
-        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, hsl(213 94% 45%) 0%, hsl(213 94% 40%) 30%, hsl(210 100% 97%) 70%)`
+        background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, hsl(213 80% 85%) 0%, hsl(213 60% 90%) 40%, hsl(210 100% 97%) 70%)`
       }}
     >
       {/* Animated Background Elements */}

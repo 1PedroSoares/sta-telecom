@@ -5,7 +5,6 @@ import { QuemSomos } from '@/components/sections/QuemSomos';
 import { Servicos } from '@/components/sections/Servicos';
 import { Clientes } from '@/components/sections/Clientes';
 import { Excelencia } from '@/components/sections/Excelencia';
-import { Login } from '@/components/sections/Login';
 import { Contato } from '@/components/sections/Contato';
 import { Orcamento } from '@/components/sections/Orcamento';
 
@@ -41,7 +40,6 @@ const Index = () => {
         <Servicos />
         <Clientes />
         <Excelencia />
-        <Login />
         <Contato />
         <Orcamento />
       </main>
