@@ -190,11 +190,11 @@
   /* Header Animations */
   .header-normal {
     height: var(--header-height);
-    @apply bg-background/95 backdrop-blur-md border-b border-border/50;
+    @apply bg-white/95 backdrop-blur-md border-b border-border/50;
   }
   
   .header-compact {
     height: var(--header-compact);
-    @apply bg-background/98 backdrop-blur-lg border-b border-border shadow-sm;
+    @apply bg-white/98 backdrop-blur-lg border-b border-border shadow-sm;
   }
 }
