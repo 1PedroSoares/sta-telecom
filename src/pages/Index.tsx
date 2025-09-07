@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { QuemSomos } from '@/components/sections/QuemSomos';
 import { Servicos } from '@/components/sections/Servicos';
 import { Clientes } from '@/components/sections/Clientes';
@@ -44,6 +45,8 @@ const Index = () => {
         <Contato />
         <Orcamento />
       </main>
+      
+      <Footer />
     </div>
   );
 };

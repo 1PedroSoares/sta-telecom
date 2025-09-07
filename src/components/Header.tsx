@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoginModal } from '@/components/LoginModal';
 
 interface HeaderProps {
   onSectionClick: (sectionId: string) => void;
@@ -9,6 +10,7 @@ interface HeaderProps {
 export const Header = ({ onSectionClick }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,7 +25,6 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
     { id: 'quem-somos', label: 'Quem Somos' },
     { id: 'servicos', label: 'Serviços' },
     { id: 'clientes', label: 'Clientes' },
-    { id: 'excelencia', label: 'Excelência' },
     { id: 'contato', label: 'Contato' },
     { id: 'orcamento', label: 'Orçamento' },
   ];
@@ -72,7 +73,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
             </Button>
           ))}
           <Button 
-            onClick={() => handleNavClick('login')}
+            onClick={() => setIsLoginModalOpen(true)}
             className="btn-tech ml-4"
           >
             Login
@@ -105,7 +106,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
               </Button>
             ))}
             <Button 
-              onClick={() => handleNavClick('login')}
+              onClick={() => setIsLoginModalOpen(true)}
               className="btn-tech justify-start mt-4"
             >
               Login
@@ -113,6 +114,11 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
           </nav>
         </div>
       )}
+      
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </header>
   );
 };
