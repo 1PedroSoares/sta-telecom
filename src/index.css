@@ -190,11 +190,16 @@
   /* Header Animations */
   .header-normal {
     height: var(--header-height);
-    @apply bg-white/95 backdrop-blur-md border-b border-border/50;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
   }
   
   .header-compact {
     height: var(--header-compact);
-    @apply bg-white/98 backdrop-blur-lg border-b border-border shadow-sm;
+    background-color: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   }
 }
