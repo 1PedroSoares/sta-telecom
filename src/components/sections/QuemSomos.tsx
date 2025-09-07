@@ -54,18 +54,38 @@ export const QuemSomos = () => {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl md:text-6xl font-bold text-white mb-8 leading-tight">
+          <h2 
+            className="text-5xl md:text-6xl font-bold mb-8 leading-tight transition-colors duration-300"
+            style={{
+              color: `hsl(213, ${Math.max(60, 60 + mousePosition.x * 0.5)}%, ${Math.max(30, 30 + mousePosition.y * 0.3)}%)`
+            }}
+          >
             Quem Somos
           </h2>
           
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 md:p-12 border border-white/20 shadow-2xl">
-            <p className="text-xl md:text-2xl text-white/95 leading-relaxed mb-8">
-              Desde <span className="font-bold text-white">1994</span>, a STA Telecomunicações e Eletricidade LTDA 
+            <p 
+              className="text-xl md:text-2xl leading-relaxed mb-8 transition-colors duration-300"
+              style={{
+                color: `hsl(213, ${Math.max(70, 70 + mousePosition.x * 0.4)}%, ${Math.max(40, 40 + mousePosition.y * 0.2)}%)`
+              }}
+            >
+              Desde <span 
+                className="font-bold transition-colors duration-300"
+                style={{
+                  color: `hsl(213, ${Math.max(80, 80 + mousePosition.x * 0.3)}%, ${Math.max(25, 25 + mousePosition.y * 0.2)}%)`
+                }}
+              >1994</span>, a STA Telecomunicações e Eletricidade LTDA 
               tem sido pioneira na integração de tecnologias avançadas, unindo telecomunicações e 
               eletricidade em soluções inovadoras.
             </p>
             
-            <p className="text-lg md:text-xl text-white/90 leading-relaxed mb-8">
+            <p 
+              className="text-lg md:text-xl leading-relaxed mb-8 transition-colors duration-300"
+              style={{
+                color: `hsl(213, ${Math.max(65, 65 + mousePosition.x * 0.3)}%, ${Math.max(45, 45 + mousePosition.y * 0.15)}%)`
+              }}
+            >
               Nossa empresa se destaca pela excelência técnica e pelo compromisso com a inovação, 
               oferecendo soluções completas que atendem às necessidades mais complexas do mercado 
               corporativo e industrial.
@@ -73,16 +93,46 @@ export const QuemSomos = () => {
             
             <div className="grid md:grid-cols-3 gap-6 mt-12">
               <div className="text-center">
-                <div className="text-4xl font-bold text-white mb-2">29+</div>
-                <p className="text-white/80">Anos de Experiência</p>
+                <div 
+                  className="text-4xl font-bold mb-2 transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(75, 75 + mousePosition.x * 0.4)}%, ${Math.max(30, 30 + mousePosition.y * 0.2)}%)`
+                  }}
+                >29+</div>
+                <p 
+                  className="transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(60, 60 + mousePosition.x * 0.3)}%, ${Math.max(50, 50 + mousePosition.y * 0.1)}%)`
+                  }}
+                >Anos de Experiência</p>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-white mb-2">500+</div>
-                <p className="text-white/80">Projetos Realizados</p>
+                <div 
+                  className="text-4xl font-bold mb-2 transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(75, 75 + mousePosition.x * 0.4)}%, ${Math.max(30, 30 + mousePosition.y * 0.2)}%)`
+                  }}
+                >500+</div>
+                <p 
+                  className="transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(60, 60 + mousePosition.x * 0.3)}%, ${Math.max(50, 50 + mousePosition.y * 0.1)}%)`
+                  }}
+                >Projetos Realizados</p>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-white mb-2">100%</div>
-                <p className="text-white/80">Compromisso</p>
+                <div 
+                  className="text-4xl font-bold mb-2 transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(75, 75 + mousePosition.x * 0.4)}%, ${Math.max(30, 30 + mousePosition.y * 0.2)}%)`
+                  }}
+                >100%</div>
+                <p 
+                  className="transition-colors duration-300"
+                  style={{
+                    color: `hsl(213, ${Math.max(60, 60 + mousePosition.x * 0.3)}%, ${Math.max(50, 50 + mousePosition.y * 0.1)}%)`
+                  }}
+                >Compromisso</p>
               </div>
             </div>
           </div>
