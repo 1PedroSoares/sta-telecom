@@ -35,29 +35,17 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
   };
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'header-compact' : 'header-normal'
-      }`}
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'header-compact' : 'header-normal'
+        }`}
     >
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-hover rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">STA</span>
-          </div>
-          <div className="text-foreground">
-            <h1 className={`font-bold transition-all duration-300 ${
-              isScrolled ? 'text-lg' : 'text-xl'
-            }`}>
-              STA Telecomunicações
-            </h1>
-            <p className={`text-muted-foreground transition-all duration-300 ${
-              isScrolled ? 'text-xs' : 'text-sm'
-            }`}>
-              Eletricidade LTDA
-            </p>
-          </div>
+        <div className="flex items-center">
+          <img
+            src="/logos/sta-telecom.jpg"
+            alt="Logo STA Telecomunicações e Eletricidade LTDA"
+            className={`transition-all duration-300 h-10 ${isScrolled ? 'h-8' : 'h-10'}`}
+          />
         </div>
 
         {/* Desktop Navigation */}
@@ -72,7 +60,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
               {item.label}
             </Button>
           ))}
-          <Button 
+          <Button
             onClick={() => setIsLoginModalOpen(true)}
             className="btn-tech ml-4"
           >
@@ -105,7 +93,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
                 {item.label}
               </Button>
             ))}
-            <Button 
+            <Button
               onClick={() => setIsLoginModalOpen(true)}
               className="btn-tech justify-start mt-4"
             >
@@ -114,10 +102,10 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
           </nav>
         </div>
       )}
-      
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
       />
     </header>
   );
