@@ -1,11 +1,4 @@
 {
-<<<<<<< HEAD
-  "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
-  }
-}
-=======
   "name": "vite_react_shadcn_ts",
   "private": true,
   "version": "0.0.0",
@@ -88,4 +81,3 @@
     "vite": "^5.4.19"
   }
 }
->>>>>>> f0cae941bd0d6286d02c44d1436c2b4b7e5f9c61
