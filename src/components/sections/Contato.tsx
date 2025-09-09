@@ -94,9 +94,10 @@ export const Contato = () => {
               </CardHeader>
               <CardContent>
                 <address className="text-foreground not-italic leading-relaxed">
-                  Rua Barão de Sabará, 231<br />
+                  Rua da Barão de Sabará, 231<br />
                   Madre Gertrudes<br />
                   Belo Horizonte - MG<br />
+                  CEP: 30512-750
                 </address>
               </CardContent>
             </Card>
@@ -118,7 +119,7 @@ export const Contato = () => {
                 {/* Google Maps Embed */}
                 <div className="aspect-video w-full">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3657.1975312805955!2d-46.65847368481997!3d-23.561414284681838!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ce59c8da0aa315%3A0xd59f9431f2c9776a!2sAv.%20Paulista%2C%20S%C3%A3o%20Paulo%20-%20SP!5e0!3m2!1spt!2sbr!4v1635789123456!5m2!1spt!2sbr"
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3749.876!2d-43.9448!3d-19.9167!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDU1JzAwLjEiUyA0M8KwNTYnNDEuMyJX!5e0!3m2!1spt!2sbr!4v1635789123456!5m2!1spt!2sbr&q=Rua+Bar%C3%A3o+de+Sabar%C3%A1,+231,+Madre+Gertrudes,+Belo+Horizonte,+MG+30512-750"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
