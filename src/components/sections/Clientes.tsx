@@ -8,34 +8,50 @@ export const Clientes = () => {
   const [showAllClients, setShowAllClients] = useState(false);
 
   const featuredClients = [
-    { name: 'Petrobras', sector: 'Energia', logo: '🛢️' },
-    { name: 'Vale', sector: 'Mineração', logo: '⛏️' },
-    { name: 'Embraer', sector: 'Aeroespacial', logo: '✈️' },
-    { name: 'CSN', sector: 'Siderurgia', logo: '🏭' },
-    { name: 'Eletrobras', sector: 'Energia Elétrica', logo: '⚡' },
-    { name: 'Telefônica', sector: 'Telecomunicações', logo: '📡' }
+    { name: 'Cemig', sector: 'Energia', logo: '/logos/cemig.png' },
+    { name: 'Ericsson', sector: 'Telecomunicações', logo: '/logos/ericsson.png' },
+    { name: 'Zopone', sector: 'Engenharia', logo: '/logos/zopone.png' },
+    { name: 'Nextel', sector: 'Telecomunicações', logo: '/logos/nextel.png' },
+    { name: 'Ageplan', sector: 'Engenharia e Construções', logo: '/logos/ageplan.png' },
+    { name: 'Tim', sector: 'Telecomunicações', logo: '/logos/tim.png' },
+    { name: 'Huawei', sector: 'Telecomunicações', logo: '/logos/huawei.png' },
+    { name: 'Enecol', sector: 'Engenharia', logo: '/logos/enecol.png' },
   ];
 
   const allClients = [
     ...featuredClients,
-    { name: 'Banco do Brasil', sector: 'Financeiro', logo: '🏦' },
-    { name: 'Caixa Econômica', sector: 'Financeiro', logo: '🏦' },
-    { name: 'Correios', sector: 'Logística', logo: '📮' },
-    { name: 'ANEEL', sector: 'Regulação', logo: '🏛️' },
-    { name: 'ANATEL', sector: 'Telecomunicações', logo: '📊' },
-    { name: 'Furnas', sector: 'Energia', logo: '⚡' },
-    { name: 'CEMIG', sector: 'Energia', logo: '💡' },
-    { name: 'COPEL', sector: 'Energia', logo: '🔌' },
-    { name: 'Light', sector: 'Energia', logo: '💡' },
-    { name: 'Vivo', sector: 'Telecomunicações', logo: '📱' },
-    { name: 'TIM', sector: 'Telecomunicações', logo: '📞' },
-    { name: 'Claro', sector: 'Telecomunicações', logo: '📶' },
-    { name: 'Sabesp', sector: 'Saneamento', logo: '💧' },
-    { name: 'Gerdau', sector: 'Siderurgia', logo: '🏗️' },
-    { name: 'JBS', sector: 'Alimentício', logo: '🥩' },
-    { name: 'Ambev', sector: 'Bebidas', logo: '🍺' },
-    { name: 'Suzano', sector: 'Papel e Celulose', logo: '🌲' },
-    { name: 'Klabin', sector: 'Papel e Celulose', logo: '📄' }
+    { name: 'Promon Eletrônica Ltda', sector: 'Telecomunicações', logo: '' },
+    { name: 'CEMIG Distribuidora S/A', sector: 'Energia', logo: '' },
+    { name: 'Nextel Telecomunicações Ltda', sector: 'Telecomunicações', logo: '' },
+    { name: 'Ferk Telecom Serviços e Construções Ltda', sector: 'Engenharia e Construções', logo: '' },
+    { name: 'Enecol Engenharia e Eletricidade Ltda', sector: 'Engenharia e Eletricidade', logo: '' },
+    { name: 'Emerson Sistemas e Energia Ltda', sector: 'Sistemas e Energia', logo: '' },
+    { name: 'American Tower do Brasil', sector: 'Telecomunicações', logo: '' },
+    { name: 'Semco Manutenção Volante Ltda', sector: 'Manutenção', logo: '' },
+    { name: 'Radio Inconfidência Ltda', sector: 'Comunicação', logo: '' },
+    { name: 'CAW Projetos e Consultoria Industrial Ltda', sector: 'Projetos e Consultoria', logo: '' },
+    { name: 'Zener Telecomunicações e Sistemas Ltda', sector: 'Telecomunicações e Sistemas', logo: '' },
+    { name: 'Northern Telecom do Brasil Comercio e Serviços Ltda', sector: 'Telecomunicações', logo: '' },
+    { name: 'Oi (Telemar Telecomunicações de Minas Gerais S/A)', sector: 'Telecomunicações', logo: '' },
+    { name: 'Ageplan Engenharia e Construções', sector: 'Engenharia e Construções', logo: '' },
+    { name: 'Claro', sector: 'Telecomunicações', logo: '' },
+    { name: 'Americel S/A', sector: 'Telecomunicações', logo: '' },
+    { name: 'Promon Tecnologia Ltda', sector: 'Tecnologia', logo: '' },
+    { name: 'Zopone Engenharia e Comercio Ltda', sector: 'Engenharia e Comércio', logo: '' },
+    { name: 'Nokia Siemens Networks do Brasil', sector: 'Telecomunicações', logo: '' },
+    { name: 'Hexagon Comercial e Telecomunicações Ltda', sector: 'Comercial e Telecomunicações', logo: '' },
+    { name: 'COMESA – Construtora Melo Sant’Anna Ltda', sector: 'Construção', logo: '' },
+    { name: 'Harris do Brasil Ltda', sector: 'Tecnologia', logo: '' },
+    { name: 'Siemens Ltda', sector: 'Tecnologia', logo: '' },
+    { name: 'Flextronics Network Services Ltda', sector: 'Serviços de Rede', logo: '' },
+    { name: 'Belmusic Serviços Musicais Ltda – Grupo Bel Ltda', sector: 'Música', logo: '' },
+    { name: 'Relacom Serviços de Engenharia e Telecomunicações Ltda', sector: 'Engenharia e Telecomunicações', logo: '' },
+    { name: 'Saturnia Sistemas de Energia Ltda', sector: 'Sistemas de Energia', logo: '' },
+    { name: 'Networker Telecom Industria e Comercio de Representação Ltda', sector: 'Telecomunicações', logo: '' },
+    { name: 'Vivo (Telemig Celular S/A)', sector: 'Telecomunicações', logo: '' },
+    { name: 'GVT – Global Village Telecom Ltda', sector: 'Telecomunicações', logo: '' },
+    { name: 'VESPER S/A', sector: 'Telecomunicações', logo: '' },
+    { name: 'NEC do Brasil S/A', sector: 'Telecomunicações', logo: '' },
   ];
 
   const nextSlide = () => {
@@ -71,7 +87,7 @@ export const Clientes = () => {
               {getSlidesForCurrentIndex().map((client, index) => (
                 <div key={index} className="text-center group">
                   <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-primary/20">
-                    <span className="text-3xl">{client.logo}</span>
+                    <img src={client.logo} alt={`Logo da ${client.name}`} className="h-full w-full object-contain p-2" />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                     {client.name}
@@ -134,7 +150,11 @@ export const Clientes = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {allClients.map((client, index) => (
                   <div key={index} className="bg-secondary/50 rounded-lg p-4 text-center hover:bg-secondary transition-colors">
-                    <div className="text-2xl mb-2">{client.logo}</div>
+                    <div className="text-2xl mb-2">
+                      {/* Remove o emoji e exibe a logo se houver */}
+                      {client.logo && <img src={client.logo} alt={`Logo da ${client.name}`} className="h-6 mx-auto object-contain" />}
+                      {!client.logo && <Building2 className="mx-auto" />}
+                    </div>
                     <h4 className="font-semibold text-foreground">{client.name}</h4>
                     <p className="text-sm text-muted-foreground">{client.sector}</p>
                   </div>
