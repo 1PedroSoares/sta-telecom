@@ -93,7 +93,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-background/98 backdrop-blur-lg border-b border-border">
+        <div className="lg:hidden bg-background/95 backdrop-blur-xl border-b border-border shadow-lg">
           <nav className="container mx-auto px-4 py-4 flex flex-col space-y-2">
             {menuItems.map((item) => (
               <Button
