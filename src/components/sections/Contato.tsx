@@ -7,19 +7,19 @@ export const Contato = () => {
     {
       icon: Building,
       title: 'CNPJ',
-      value: '12.345.678/0001-90',
+      value: '97.424.253/0001-24',
       description: 'STA Telecomunicações e Eletricidade LTDA'
     },
     {
       icon: Phone,
       title: 'Telefone',
-      value: '(11) 3456-7890',
+      value: '(31) 3418-2194',
       description: 'Atendimento comercial e técnico'
     },
     {
       icon: Mail,
       title: 'E-mail',
-      value: 'contato@sta-telecom.com.br',
+      value: 'sta.telecom@terra.com.br',
       description: 'Envie sua mensagem ou dúvida'
     },
     {
@@ -94,10 +94,9 @@ export const Contato = () => {
               </CardHeader>
               <CardContent>
                 <address className="text-foreground not-italic leading-relaxed">
-                  Rua da Tecnologia, 1234<br />
-                  Bairro Industrial<br />
-                  São Paulo - SP<br />
-                  CEP: 01234-567
+                  Rua Barão de Sabará, 231<br />
+                  Madre Gertrudes<br />
+                  Belo Horizonte - MG<br />
                 </address>
               </CardContent>
             </Card>
@@ -135,14 +134,14 @@ export const Contato = () => {
             {/* Quick Contact Options */}
             <div className="mt-6 grid grid-cols-2 gap-4">
               <a 
-                href="tel:+551134567890"
+                href="tel:+553134182194"
                 className="bg-gradient-to-r from-primary to-primary-hover text-primary-foreground p-4 rounded-xl text-center font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <Phone className="w-6 h-6 mx-auto mb-2" />
                 Ligar Agora
               </a>
               <a 
-                href="mailto:contato@sta-telecom.com.br"
+                href="mailto:sta.telecom@terra.com.br"
                 className="bg-white border-2 border-primary text-primary p-4 rounded-xl text-center font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300 hover:scale-105"
               >
                 <Mail className="w-6 h-6 mx-auto mb-2" />
