@@ -19,7 +19,7 @@ export const Contato = () => {
     {
       icon: Mail,
       title: 'E-mail',
-      value: 'sta.telecom@terra.com.br',
+      value: 'sta.telecom@statel.com.br',
       description: 'Envie sua mensagem ou dúvida'
     },
     {
@@ -38,7 +38,7 @@ export const Contato = () => {
             Entre em Contato
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Estamos prontos para atender suas necessidades em telecomunicações e eletricidade. 
+            Estamos prontos para atender suas necessidades em telecomunicações e eletricidade.
             Fale conosco e descubra como podemos ajudar seu projeto.
           </p>
         </div>
@@ -47,7 +47,7 @@ export const Contato = () => {
           {/* Contact Information */}
           <div className="space-y-6">
             <h3 className="text-2xl font-bold text-foreground mb-8">Informações de Contato</h3>
-            
+
             <div className="grid gap-6">
               {contactInfo.map((info, index) => (
                 <Card key={index} className="card-tech group">
@@ -134,15 +134,15 @@ export const Contato = () => {
 
             {/* Quick Contact Options */}
             <div className="mt-6 grid grid-cols-2 gap-4">
-              <a 
+              <a
                 href="tel:+553134182194"
                 className="bg-gradient-to-r from-primary to-primary-hover text-primary-foreground p-4 rounded-xl text-center font-medium hover:shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <Phone className="w-6 h-6 mx-auto mb-2" />
                 Ligar Agora
               </a>
-              <a 
-                href="mailto:sta.telecom@terra.com.br"
+              <a
+                href="mailto:sta.telecom@statel.com.br"
                 className="bg-white border-2 border-primary text-primary p-4 rounded-xl text-center font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300 hover:scale-105"
               >
                 <Mail className="w-6 h-6 mx-auto mb-2" />
