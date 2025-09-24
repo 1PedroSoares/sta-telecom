@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { Hero } from '@/components/sections/Hero';
 import { QuemSomos } from '@/components/sections/QuemSomos';
 import { Servicos } from '@/components/sections/Servicos';
 import { Clientes } from '@/components/sections/Clientes';
@@ -36,6 +37,7 @@ const Index = () => {
       <Header onSectionClick={scrollToSection} />
       
       <main>
+        <Hero />
         <QuemSomos />
         <Servicos />
         <Clientes />
