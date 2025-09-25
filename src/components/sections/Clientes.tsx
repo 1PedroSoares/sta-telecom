@@ -86,7 +86,7 @@ export const Clientes = () => {
             <div className="grid md:grid-cols-3 gap-8">
               {getSlidesForCurrentIndex().map((client, index) => (
                 <div key={index} className="text-center group">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 border border-primary/20">
+                  <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                     <img src={client.logo} alt={`Logo da ${client.name}`} className="h-full w-full object-contain p-2" />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">

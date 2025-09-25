@@ -8,7 +8,7 @@ const Hero = () => {
     if (element) {
       const headerHeight = 80;
       const elementPosition = element.offsetTop - headerHeight;
-      
+
       window.scrollTo({
         top: elementPosition,
         behavior: 'smooth'
@@ -19,7 +19,7 @@ const Hero = () => {
   return (
     <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
       {/* Background Image */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(${heroImage})`,
@@ -31,15 +31,15 @@ const Hero = () => {
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 text-center text-white">
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+        <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)' }}>
           SOLUÇÕES EM TELECOM & ELETRICIDADE
         </h1>
-        
-        <p className="text-xl md:text-2xl mb-8 max-w-4xl mx-auto leading-relaxed text-white/90">
+
+        <p className="text-xl md:text-2xl mb-8 max-w-4xl mx-auto leading-relaxed text-white/90" style={{ textShadow: '1px 1px 3px rgba(0, 0, 0, 0.5)' }}>
           A STA Telecom atua com excelência e qualidade para oferecer as melhores soluções sob medida para sua empresa.
         </p>
-        
-        <Button 
+
+        <Button
           onClick={() => scrollToSection('servicos')}
           size="lg"
           className="bg-white/10 text-white border border-white/20 hover:bg-white/20 text-lg px-8 py-6 h-auto font-semibold"

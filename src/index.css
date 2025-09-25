@@ -2,61 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* STA Telecomunicações Design System - Tecnológico e Sofisticado */
+/* STA Telecomunicações Design System - Tecnológico e Sofisticado (Dark Mood) */
 
 @layer base {
   :root {
-    /* Core Brand Colors - Tech Blue & White */
+    /* Core Brand Colors - Dark Blue & White */
     --background: 0 0% 100%;
-    --foreground: 218 17% 20%;
-    
-    /* Primary - Tech Blue */
-    --primary: 213 94% 40%;
+    --foreground: 222 47% 11%;
+    /* Um azul bem escuro, quase preto */
+
+    /* Primary - Dark Blue */
+    --primary: 217 91% 60%;
+    /* Azul vibrante, mas não excessivamente claro */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 213 94% 85%;
-    --primary-hover: 213 94% 35%;
-    
-    /* Secondary - Light Blue */
-    --secondary: 210 100% 97%;
-    --secondary-foreground: 213 94% 40%;
-    
+    --primary-light: 217 91% 85%;
+    --primary-hover: 217 91% 55%;
+
+    /* Secondary - Light Gray */
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 222 47% 11%;
+
     /* Tech Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(213 94% 40%), hsl(213 94% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(210 100% 97%), hsl(213 94% 85%));
-    --gradient-hero: linear-gradient(135deg, hsl(213 94% 40%) 0%, hsl(213 94% 50%) 50%, hsl(210 100% 97%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 100% 98%));
-    
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(220 13% 91%), hsl(217 91% 85%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 50%, hsl(220 13% 91%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 13% 96%));
+
     /* Interactive Elements */
-    --accent: 213 94% 85%;
-    --accent-foreground: 213 94% 40%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 218 17% 50%;
-    
+    --accent: 220 13% 91%;
+    --accent-foreground: 222 47% 11%;
+    --muted: 220 13% 96%;
+    --muted-foreground: 222 47% 40%;
+
     /* UI Elements */
     --card: 0 0% 100%;
-    --card-foreground: 218 17% 20%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 218 17% 20%;
-    --border: 213 27% 84%;
-    --input: 213 27% 88%;
-    --ring: 213 94% 40%;
-    
+    --popover-foreground: 222 47% 11%;
+    --border: 220 13% 85%;
+    --input: 220 13% 88%;
+    --ring: 217 91% 60%;
+
     /* Semantic Colors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    
+
     /* Shadows & Effects */
-    --shadow-card: 0 4px 6px -1px hsl(213 94% 40% / 0.1), 0 2px 4px -1px hsl(213 94% 40% / 0.06);
-    --shadow-hover: 0 10px 25px -3px hsl(213 94% 40% / 0.15), 0 4px 6px -2px hsl(213 94% 40% / 0.05);
-    --shadow-glow: 0 0 20px hsl(213 94% 40% / 0.3);
-    
+    --shadow-card: 0 4px 6px -1px hsl(217 91% 60% / 0.1), 0 2px 4px -1px hsl(217 91% 60% / 0.06);
+    --shadow-hover: 0 10px 25px -3px hsl(217 91% 60% / 0.15), 0 4px 6px -2px hsl(217 91% 60% / 0.05);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+
     /* Spacing & Layout */
     --radius: 0.75rem;
     --header-height: 4rem;
     --header-compact: 3rem;
-    
+
     /* Transitions */
     --transition-smooth: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -133,60 +135,68 @@
 }
 
 @layer components {
+
   /* Tech Button Variants */
   .btn-tech {
-    @apply bg-gradient-to-r from-primary to-[hsl(213_94%_35%)] text-primary-foreground px-6 py-3 rounded-lg font-medium;
-    @apply transition-all duration-300 hover:shadow-[0_0_20px_hsl(213_94%_40%/0.3)] hover:scale-105;
+    @apply bg-gradient-to-r from-primary to-[hsl(217_91%_55%)] text-primary-foreground px-6 py-3 rounded-lg font-medium;
+    @apply transition-all duration-300 hover:shadow-[0_0_20px_hsl(217_91%_60%/0.3)] hover:scale-105;
     @apply border border-primary/20;
   }
-  
+
   .btn-outline-tech {
     @apply border-2 border-primary text-primary bg-transparent px-6 py-3 rounded-lg font-medium;
     @apply transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-lg;
   }
-  
+
   /* Card Variants */
   .card-tech {
     @apply bg-gradient-to-br from-card to-secondary border border-border rounded-xl;
-    @apply shadow-[0_4px_6px_-1px_hsl(213_94%_40%/0.1)] transition-all duration-300;
-    @apply hover:shadow-[0_10px_25px_-3px_hsl(213_94%_40%/0.15)] hover:-translate-y-1;
+    @apply shadow-[0_4px_6px_-1px_hsl(217_91%_60%/0.1)] transition-all duration-300;
+    @apply hover:shadow-[0_10px_25px_-3px_hsl(217_91%_60%/0.15)] hover:-translate-y-1;
   }
-  
+
   /* Interactive Background Animation */
   .animated-bg {
-    background: linear-gradient(135deg, hsl(213 94% 40%) 0%, hsl(213 94% 50%) 50%, hsl(210 100% 97%) 100%);
+    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 50%, hsl(220 13% 91%) 100%);
     background-size: 400% 400%;
     animation: gradientShift 8s ease infinite;
   }
-  
+
   @keyframes gradientShift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
   }
-  
+
   /* Parallax Elements */
   .parallax-slow {
     transform: translateZ(0);
     will-change: transform;
   }
-  
+
   /* Text Gradients */
   .text-gradient {
-    background: linear-gradient(135deg, hsl(213 94% 40%), hsl(213 94% 50%));
+    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
+
   /* Smooth Transitions */
   .transition-smooth {
     transition: var(--transition-smooth);
   }
-  
+
   .transition-spring {
     transition: var(--transition-spring);
   }
-  
+
   /* Header Animations */
   .header-normal {
     height: var(--header-height);
@@ -194,7 +204,7 @@
     backdrop-filter: blur(12px);
     border-bottom: 1px solid hsl(var(--border) / 0.5);
   }
-  
+
   .header-compact {
     height: var(--header-compact);
     background-color: rgba(255, 255, 255, 0.98);

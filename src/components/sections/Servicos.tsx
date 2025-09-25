@@ -65,7 +65,7 @@ export const Servicos = () => {
             Nossos Serviços
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Oferecemos soluções completas em telecomunicações e eletricidade, 
+            Oferecemos soluções completas em telecomunicações e eletricidade,
             com tecnologia de ponta e excelência em cada projeto.
           </p>
         </div>
@@ -112,7 +112,7 @@ export const Servicos = () => {
 
         {/* Expandable Services Section */}
         <div className="text-center">
-          <Button 
+          <Button
             onClick={() => setIsExpanded(!isExpanded)}
             className="btn-outline-tech mb-8"
           >
@@ -125,8 +125,8 @@ export const Servicos = () => {
               <h3 className="text-2xl font-bold text-foreground mb-6">Serviços Complementares</h3>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {additionalServices.map((service, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="bg-white rounded-lg p-4 border border-border/30 hover:border-primary/50 transition-colors hover:shadow-md"
                   >
                     <p className="text-foreground font-medium">{service}</p>
