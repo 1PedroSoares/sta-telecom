@@ -1,8 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Handshake, Shield } from 'lucide-react';
+import { useScrollRevealStagger } from '@/hooks/useScrollReveal';
 
 export const Excelencia = () => {
+  const { createRef, visibleItems } = useScrollRevealStagger();
+  
   const excellenceCards = [
     {
       title: 'Equipe Especializada',
@@ -57,7 +60,11 @@ export const Excelencia = () => {
 
         <div className="grid lg:grid-cols-3 gap-8">
           {excellenceCards.map((card, index) => (
-            <Card key={index} className="card-tech h-full group">
+            <Card 
+              key={index} 
+              ref={createRef(index)}
+              className={`card-tech h-full group scroll-reveal scroll-reveal-stagger ${visibleItems.has(index) ? 'revealed' : ''}`}
+            >
               <CardHeader className="text-center pb-6">
                 <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-primary to-primary-hover rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
                   <card.icon className="w-10 h-10 text-primary-foreground" />

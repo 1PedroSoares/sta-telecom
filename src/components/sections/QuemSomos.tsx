@@ -70,14 +70,15 @@ export const QuemSomos = () => {
                 color: `hsl(213, ${Math.max(70, 70 + mousePosition.x * 0.4)}%, ${Math.max(40, 40 + mousePosition.y * 0.2)}%)`
               }}
             >
-              Desde <span 
+              Atuando desde <span 
                 className="font-bold transition-colors duration-300"
                 style={{
                   color: `hsl(213, ${Math.max(80, 80 + mousePosition.x * 0.3)}%, ${Math.max(25, 25 + mousePosition.y * 0.2)}%)`
                 }}
-              >1994</span>, a STA Telecomunicações e Eletricidade LTDA 
-              tem sido pioneira na integração de tecnologias avançadas, unindo telecomunicações e 
-              eletricidade em soluções inovadoras.
+              >1994</span> no mercado de telecomunicações em todo o território nacional, 
+              a STA Telecomunicações e Eletricidade, tem como objetivo ser uma integradora de tecnologias 
+              em implantação de sistemas de telecomunicações, atendendo às necessidades das empresas parceiras, 
+              em um mercado emergente e com amplas perspectivas de desenvolvimento.
             </p>
             
             <p 

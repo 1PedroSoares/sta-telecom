@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 export const Clientes = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showAllClients, setShowAllClients] = useState(false);
+  const { ref: sectionRef, isVisible } = useScrollReveal();
 
   const featuredClients = [
     { name: 'Cemig', sector: 'Energia', logo: '/logos/cemig.png' },
@@ -68,7 +70,11 @@ export const Clientes = () => {
   };
 
   return (
-    <section id="clientes" className="py-20 bg-gradient-to-r from-background to-secondary">
+    <section 
+      id="clientes" 
+      ref={sectionRef}
+      className={`py-20 bg-gradient-to-r from-background to-secondary scroll-reveal ${isVisible ? 'revealed' : ''}`}
+    >
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-gradient mb-6">
