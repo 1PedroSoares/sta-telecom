@@ -3,11 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Zap, Wifi, Home, Phone, Settings, ChevronRight } from 'lucide-react';
-import { useScrollRevealStagger } from '@/hooks/useScrollReveal';
 
 export const Servicos = () => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { createRef, visibleItems } = useScrollRevealStagger();
 
   const mainServices = [
     {
@@ -75,11 +73,7 @@ export const Servicos = () => {
         {/* Main Services Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           {mainServices.map((service, index) => (
-            <Card 
-              key={index} 
-              ref={createRef(index)}
-              className={`card-tech group cursor-pointer scroll-reveal scroll-reveal-stagger ${visibleItems.has(index) ? 'revealed' : ''}`}
-            >
+            <Card key={index} className="card-tech group cursor-pointer">
               <CardHeader className="text-center pb-4">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-primary to-primary-hover rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <service.icon className="w-8 h-8 text-primary-foreground" />

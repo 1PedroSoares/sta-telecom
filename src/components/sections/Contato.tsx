@@ -19,7 +19,7 @@ export const Contato = () => {
     {
       icon: Mail,
       title: 'E-mail',
-      value: 'sta.telecom@terra.com.br',
+      value: 'sta.telecom@statel.com.br',
       description: 'Envie sua mensagem ou dúvida'
     },
     {
@@ -142,7 +142,7 @@ export const Contato = () => {
                 Ligar Agora
               </a>
               <a
-                href="mailto:sta.telecom@terra.com.br"
+                href="mailto:sta.telecom@statel.com.br"
                 className="bg-white border-2 border-primary text-primary p-4 rounded-xl text-center font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300 hover:scale-105"
               >
                 <Mail className="w-6 h-6 mx-auto mb-2" />
