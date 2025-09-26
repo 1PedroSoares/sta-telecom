@@ -11,12 +11,12 @@ interface LoginModalProps {
 
 export const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
   const handleClientAccess = () => {
-    alert('Redirecionando para área do cliente...');
+    window.location.href = '/auth';
     onClose();
   };
 
   const handleCollaboratorAccess = () => {
-    alert('Redirecionando para área do colaborador...');
+    window.location.href = '/auth';
     onClose();
   };
 
