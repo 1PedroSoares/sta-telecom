@@ -4,8 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Calendar, FileText, Image, LogOut, Plus, User } from 'lucide-react';
+import { LogOut, Calendar, FileImage, Upload, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -15,209 +14,225 @@ interface ServiceOrder {
   title: string;
   description: string;
   start_date: string;
-  status: 'em_andamento' | 'concluido' | 'cancelado';
-  created_at: string;
-  service_images: {
-    id: string;
-    image_url: string;
-    image_type: 'progress' | 'report';
-    description: string;
-    uploaded_at: string;
-  }[];
+  status: 'pending' | 'in_progress' | 'completed';
+  progress_images: string[];
+  report_images: string[];
 }
+
+// Mock data
+const mockServiceOrders: ServiceOrder[] = [
+  {
+    id: '1',
+    os_number: 'OS-2024-001',
+    title: 'Instalação de Torre de Telecomunicações',
+    description: 'Instalação completa de torre de 50m com equipamentos de transmissão na região metropolitana.',
+    start_date: '2024-01-15',
+    status: 'in_progress',
+    progress_images: [
+      'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400',
+      'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400'
+    ],
+    report_images: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'
+    ]
+  },
+  {
+    id: '2',
+    os_number: 'OS-2024-002',
+    title: 'Manutenção de Rede Fibra Óptica',
+    description: 'Reparo e manutenção preventiva da rede de fibra óptica no centro da cidade.',
+    start_date: '2024-02-20',
+    status: 'completed',
+    progress_images: [
+      'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400',
+      'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=400'
+    ],
+    report_images: [
+      'https://images.unsplash.com/photo-1516383740770-fbcc5ccbece0?w=400'
+    ]
+  },
+  {
+    id: '3',
+    os_number: 'OS-2024-003',
+    title: 'Expansão de Cobertura 5G',
+    description: 'Implementação de nova infraestrutura para cobertura 5G na zona sul.',
+    start_date: '2024-03-10',
+    status: 'pending',
+    progress_images: [],
+    report_images: []
+  }
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, signOut } = useAuth();
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!user) {
       navigate('/auth');
       return;
     }
-    
-    if (user) {
-      fetchServiceOrders();
-    }
-  }, [user, loading, navigate]);
 
-  const fetchServiceOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('service_orders')
-        .select(`
-          *,
-          service_images (*)
-        `)
-        .order('created_at', { ascending: false });
+    // Simulate loading
+    setTimeout(() => {
+      setServiceOrders(mockServiceOrders);
+      setLoading(false);
+    }, 1000);
+  }, [user, navigate]);
 
-      if (error) throw error;
-      setServiceOrders(data as ServiceOrder[] || []);
-    } catch (error) {
-      console.error('Erro ao carregar ordens de serviço:', error);
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
-
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     await signOut();
     navigate('/');
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'em_andamento':
-        return 'bg-yellow-500';
-      case 'concluido':
-        return 'bg-green-500';
-      case 'cancelado':
-        return 'bg-red-500';
+      case 'completed':
+        return 'bg-green-500/10 text-green-700 border-green-200';
+      case 'in_progress':
+        return 'bg-blue-500/10 text-blue-700 border-blue-200';
       default:
-        return 'bg-gray-500';
+        return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'em_andamento':
-        return 'Em Andamento';
-      case 'concluido':
+      case 'completed':
         return 'Concluído';
-      case 'cancelado':
-        return 'Cancelado';
+      case 'in_progress':
+        return 'Em Andamento';
       default:
-        return status;
+        return 'Pendente';
     }
   };
 
-  if (loading || loadingOrders) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Carregando...</p>
-        </div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
-                <User className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">
-                  {profile?.role === 'employee' ? 'Portal do Colaborador' : 'Portal do Cliente'}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Bem-vindo, {profile?.full_name || user?.email}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {profile?.role === 'employee' && (
-                <Button onClick={() => navigate('/upload')} className="mr-2">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Serviço
-                </Button>
-              )}
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
+      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {user?.role === 'employee' ? 'Portal do Colaborador' : 'Portal do Cliente'}
+            </h1>
+            <p className="text-muted-foreground">Bem-vindo, {user?.fullName}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {user?.role === 'employee' && (
+              <Button onClick={() => navigate('/upload')} className="gap-2">
+                <Upload className="w-4 h-4" />
+                Nova OS
               </Button>
-            </div>
+            )}
+            <Button variant="outline" onClick={handleLogout} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Ordens de Serviço</h2>
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold mb-2">Ordens de Serviço</h2>
           <p className="text-muted-foreground">
-            {profile?.role === 'employee' 
-              ? 'Gerencie e acompanhe todas as ordens de serviço'
-              : 'Acompanhe o andamento dos seus serviços'
-            }
+            Acompanhe o andamento dos projetos e visualize relatórios
           </p>
         </div>
 
         {serviceOrders.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhuma ordem de serviço encontrada</h3>
-              <p className="text-muted-foreground">
-                {profile?.role === 'employee'
-                  ? 'Crie sua primeira ordem de serviço clicando no botão "Novo Serviço"'
-                  : 'Suas ordens de serviço aparecerão aqui quando disponíveis'
-                }
-              </p>
-            </CardContent>
+          <Card className="p-8 text-center">
+            <div className="mx-auto w-16 h-16 mb-4 bg-muted rounded-full flex items-center justify-center">
+              <FileImage className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">Nenhuma ordem de serviço encontrada</h3>
+            <p className="text-muted-foreground">
+              {user?.role === 'employee' 
+                ? 'Comece criando uma nova ordem de serviço.'
+                : 'Aguarde a criação de ordens de serviço pela equipe.'
+              }
+            </p>
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {serviceOrders.map((order) => (
-              <Card key={order.id} className="hover:shadow-lg transition-shadow">
+              <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{order.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        OS: {order.os_number}
-                      </CardDescription>
-                    </div>
-                    <Badge className={`${getStatusColor(order.status)} text-white`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <CardTitle className="text-lg">{order.title}</CardTitle>
+                    <Badge className={getStatusColor(order.status)}>
                       {getStatusText(order.status)}
                     </Badge>
                   </div>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    OS: {order.os_number}
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Início: {format(new Date(order.start_date), 'dd/MM/yyyy', { locale: ptBR })}
-                    </div>
-                    
-                    {order.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {order.description}
-                      </p>
-                    )}
-
-                    {order.service_images.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center text-sm font-medium">
-                          <Image className="w-4 h-4 mr-2" />
-                          Imagens ({order.service_images.length})
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          {order.service_images.slice(0, 3).map((img) => (
-                            <img
-                              key={img.id}
-                              src={img.image_url}
-                              alt={img.description || 'Imagem do serviço'}
-                              className="w-full h-16 object-cover rounded border"
-                            />
-                          ))}
-                          {order.service_images.length > 3 && (
-                            <div className="w-full h-16 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
-                              +{order.service_images.length - 3}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    Início: {format(new Date(order.start_date), 'dd/MM/yyyy', { locale: ptBR })}
                   </div>
+                  
+                  <p className="text-sm line-clamp-2">{order.description}</p>
+
+                  {order.progress_images.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Eye className="w-4 h-4" />
+                        Imagens do Progresso ({order.progress_images.length})
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {order.progress_images.slice(0, 2).map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Progresso ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
+                          />
+                        ))}
+                        {order.progress_images.length > 2 && (
+                          <div className="bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">
+                            +{order.progress_images.length - 2} mais
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {order.report_images.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <FileImage className="w-4 h-4" />
+                        Relatórios ({order.report_images.length})
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {order.report_images.slice(0, 2).map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Relatório ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button variant="outline" className="w-full gap-2">
+                    <Eye className="w-4 h-4" />
+                    Ver Detalhes
+                  </Button>
                 </CardContent>
               </Card>
             ))}
