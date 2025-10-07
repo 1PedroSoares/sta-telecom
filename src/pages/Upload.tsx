@@ -8,7 +8,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload as UploadIcon, X, Camera, FileText } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, X, Camera, FileText, ImagePlus } from 'lucide-react';
+
+interface ImageWithDescription {
+  file: File;
+  description: string;
+  preview: string;
+}
 
 interface Client {
   id: string;
@@ -30,8 +36,8 @@ export default function Upload() {
   
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
-  const [progressImages, setProgressImages] = useState<File[]>([]);
-  const [reportImages, setReportImages] = useState<File[]>([]);
+  const [progressImages, setProgressImages] = useState<ImageWithDescription[]>([]);
+  const [reportImages, setReportImages] = useState<ImageWithDescription[]>([]);
   
   const [formData, setFormData] = useState({
     osNumber: '',
@@ -55,18 +61,38 @@ export default function Upload() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'progress' | 'report') => {
     const files = Array.from(e.target.files || []);
+    const newImages = files.map(file => ({
+      file,
+      description: '',
+      preview: URL.createObjectURL(file)
+    }));
+    
     if (type === 'progress') {
-      setProgressImages(prev => [...prev, ...files]);
+      setProgressImages(prev => [...prev, ...newImages]);
     } else {
-      setReportImages(prev => [...prev, ...files]);
+      setReportImages(prev => [...prev, ...newImages]);
     }
   };
 
   const removeImage = (index: number, type: 'progress' | 'report') => {
     if (type === 'progress') {
-      setProgressImages(prev => prev.filter((_, i) => i !== index));
+      setProgressImages(prev => {
+        URL.revokeObjectURL(prev[index].preview);
+        return prev.filter((_, i) => i !== index);
+      });
     } else {
-      setReportImages(prev => prev.filter((_, i) => i !== index));
+      setReportImages(prev => {
+        URL.revokeObjectURL(prev[index].preview);
+        return prev.filter((_, i) => i !== index);
+      });
+    }
+  };
+
+  const updateImageDescription = (index: number, description: string, type: 'progress' | 'report') => {
+    if (type === 'progress') {
+      setProgressImages(prev => prev.map((img, i) => i === index ? { ...img, description } : img));
+    } else {
+      setReportImages(prev => prev.map((img, i) => i === index ? { ...img, description } : img));
     }
   };
 
@@ -96,40 +122,39 @@ export default function Upload() {
     }, 2000);
   };
 
-  const createImagePreview = (file: File) => {
-    return URL.createObjectURL(file);
-  };
 
   if (!user) {
     return <div>Carregando...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
             onClick={() => navigate('/dashboard')}
-            className="mb-2 text-muted-foreground hover:text-foreground"
+            className="mb-2"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar ao Dashboard
           </Button>
-          <h1 className="text-2xl font-bold text-foreground">Nova Ordem de Serviço</h1>
-          <p className="text-muted-foreground">Registre uma nova OS e faça upload das imagens</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Nova Ordem de Serviço
+          </h1>
+          <p className="text-muted-foreground mt-1">Registre uma nova OS e faça upload das imagens com descrições</p>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <Card className="shadow-xl border-primary/10 animate-fade-in">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+            <CardTitle className="text-2xl flex items-center gap-2">
               <UploadIcon className="w-6 h-6 text-primary" />
               Informações da Ordem de Serviço
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -194,127 +219,170 @@ export default function Upload() {
               </div>
 
               {/* Progress Images Section */}
-              <div className="space-y-4">
+              <div className="space-y-4 p-6 bg-gradient-to-br from-primary/5 to-transparent rounded-lg border border-primary/10">
                 <div className="flex items-center gap-2">
-                  <Camera className="w-5 h-5 text-primary" />
-                  <Label className="text-lg font-medium">Imagens do Progresso</Label>
+                  <Camera className="w-6 h-6 text-primary" />
+                  <Label className="text-xl font-semibold">Imagens do Progresso</Label>
                 </div>
                 
-                <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+                <div className="border-2 border-dashed border-primary/30 rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-card/50">
                   <Input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
                     onChange={(e) => handleFileChange(e, 'progress')}
                     className="hidden"
                     id="progress-upload"
                   />
                   <Label htmlFor="progress-upload" className="cursor-pointer">
-                    <div className="space-y-2">
-                      <UploadIcon className="w-12 h-12 mx-auto text-muted-foreground" />
-                      <p className="text-muted-foreground">
+                    <div className="space-y-3">
+                      <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <ImagePlus className="w-8 h-8 text-primary" />
+                      </div>
+                      <p className="text-lg font-medium text-foreground">
                         Clique para adicionar imagens do progresso
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Suporta múltiplas imagens (JPG, PNG)
+                        Suporta JPG, PNG, GIF, WEBP, BMP, SVG e outros formatos
                       </p>
                     </div>
                   </Label>
                 </div>
 
                 {progressImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {progressImages.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={createImagePreview(file)}
-                          alt={`Progresso ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removeImage(index, 'progress')}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                        <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                          {file.name}
+                  <div className="space-y-4 mt-6">
+                    {progressImages.map((image, index) => (
+                      <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
+                        <div className="grid md:grid-cols-[300px_1fr] gap-4 p-4">
+                          <div className="relative group">
+                            <img
+                              src={image.preview}
+                              alt={`Progresso ${index + 1}`}
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                              onClick={() => removeImage(index, 'progress')}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded truncate">
+                              {image.file.name}
+                            </div>
+                          </div>
+                          <div className="space-y-2 flex flex-col">
+                            <Label htmlFor={`progress-desc-${index}`} className="text-sm font-medium">
+                              Descrição da Imagem {index + 1}
+                            </Label>
+                            <Textarea
+                              id={`progress-desc-${index}`}
+                              placeholder="Descreva o que está acontecendo nesta imagem..."
+                              value={image.description}
+                              onChange={(e) => updateImageDescription(index, e.target.value, 'progress')}
+                              className="flex-1 min-h-[120px] resize-none"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Adicione uma descrição detalhada para facilitar a identificação
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      </Card>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Report Images Section */}
-              <div className="space-y-4">
+              <div className="space-y-4 p-6 bg-gradient-to-br from-primary/5 to-transparent rounded-lg border border-primary/10">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  <Label className="text-lg font-medium">Imagens dos Relatórios</Label>
+                  <FileText className="w-6 h-6 text-primary" />
+                  <Label className="text-xl font-semibold">Imagens dos Relatórios</Label>
                 </div>
                 
-                <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+                <div className="border-2 border-dashed border-primary/30 rounded-lg p-8 text-center hover:border-primary/50 transition-colors bg-card/50">
                   <Input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
                     onChange={(e) => handleFileChange(e, 'report')}
                     className="hidden"
                     id="report-upload"
                   />
                   <Label htmlFor="report-upload" className="cursor-pointer">
-                    <div className="space-y-2">
-                      <FileText className="w-12 h-12 mx-auto text-muted-foreground" />
-                      <p className="text-muted-foreground">
+                    <div className="space-y-3">
+                      <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-primary" />
+                      </div>
+                      <p className="text-lg font-medium text-foreground">
                         Clique para adicionar imagens dos relatórios
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Suporta múltiplas imagens (JPG, PNG)
+                        Suporta JPG, PNG, GIF, WEBP, BMP, SVG e outros formatos
                       </p>
                     </div>
                   </Label>
                 </div>
 
                 {reportImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {reportImages.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={createImagePreview(file)}
-                          alt={`Relatório ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removeImage(index, 'report')}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                        <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                          {file.name}
+                  <div className="space-y-4 mt-6">
+                    {reportImages.map((image, index) => (
+                      <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow animate-fade-in">
+                        <div className="grid md:grid-cols-[300px_1fr] gap-4 p-4">
+                          <div className="relative group">
+                            <img
+                              src={image.preview}
+                              alt={`Relatório ${index + 1}`}
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                              onClick={() => removeImage(index, 'report')}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                            <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded truncate">
+                              {image.file.name}
+                            </div>
+                          </div>
+                          <div className="space-y-2 flex flex-col">
+                            <Label htmlFor={`report-desc-${index}`} className="text-sm font-medium">
+                              Descrição da Imagem {index + 1}
+                            </Label>
+                            <Textarea
+                              id={`report-desc-${index}`}
+                              placeholder="Descreva o conteúdo desta imagem do relatório..."
+                              value={image.description}
+                              onChange={(e) => updateImageDescription(index, e.target.value, 'report')}
+                              className="flex-1 min-h-[120px] resize-none"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Adicione uma descrição detalhada para facilitar a identificação
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      </Card>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-4 pt-6">
+              <div className="flex gap-4 pt-8 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/dashboard')}
                   className="flex-1"
+                  size="lg"
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={loading} className="flex-1">
+                <Button type="submit" disabled={loading} className="flex-1" size="lg">
                   {loading ? 'Criando OS...' : 'Criar Ordem de Serviço'}
                 </Button>
               </div>
