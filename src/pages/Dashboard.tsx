@@ -90,11 +90,11 @@ export default function Dashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-500/10 text-green-700 border-green-200';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300';
       case 'in_progress':
-        return 'bg-blue-500/10 text-blue-700 border-blue-200';
+        return 'bg-primary/10 text-primary border-primary/20';
       default:
-        return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
+        return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300';
     }
   };
 
@@ -118,8 +118,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
@@ -129,7 +129,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-4">
             {user?.role === 'employee' && (
-              <Button onClick={() => navigate('/upload')} className="gap-2">
+              <Button onClick={() => navigate('/upload')} className="gap-2 bg-primary hover:bg-primary/90">
                 <Upload className="w-4 h-4" />
                 Nova OS
               </Button>
@@ -143,67 +143,76 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Ordens de Serviço</h2>
+        <div className="mb-8 animate-fade-in">
+          <h2 className="text-3xl font-bold mb-2 text-foreground">Ordens de Serviço</h2>
           <p className="text-muted-foreground">
-            Acompanhe o andamento dos projetos e visualize relatórios
+            Acompanhe o andamento dos projetos e visualize relatórios detalhados
           </p>
         </div>
 
         {serviceOrders.length === 0 ? (
-          <Card className="p-8 text-center">
-            <div className="mx-auto w-16 h-16 mb-4 bg-muted rounded-full flex items-center justify-center">
-              <FileImage className="w-8 h-8 text-muted-foreground" />
+          <Card className="p-12 text-center border-dashed border-2">
+            <div className="mx-auto w-20 h-20 mb-4 bg-muted/50 rounded-full flex items-center justify-center">
+              <FileImage className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium mb-2">Nenhuma ordem de serviço encontrada</h3>
-            <p className="text-muted-foreground">
+            <h3 className="text-xl font-semibold mb-2 text-foreground">Nenhuma ordem de serviço encontrada</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
               {user?.role === 'employee' 
-                ? 'Comece criando uma nova ordem de serviço.'
-                : 'Aguarde a criação de ordens de serviço pela equipe.'
+                ? 'Comece criando uma nova ordem de serviço para seus clientes.'
+                : 'Aguarde a criação de ordens de serviço pela nossa equipe.'
               }
             </p>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {serviceOrders.map((order) => (
-              <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <CardHeader>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-fade-in">
+            {serviceOrders.map((order, idx) => (
+              <Card 
+                key={order.id} 
+                className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                <CardHeader className="bg-gradient-to-br from-card to-muted/30 pb-4">
                   <div className="flex justify-between items-start mb-2">
-                    <CardTitle className="text-lg">{order.title}</CardTitle>
+                    <CardTitle className="text-lg text-foreground line-clamp-2">{order.title}</CardTitle>
                     <Badge className={getStatusColor(order.status)}>
                       {getStatusText(order.status)}
                     </Badge>
                   </div>
-                  <CardDescription className="text-sm text-muted-foreground">
-                    OS: {order.os_number}
+                  <CardDescription className="text-sm text-muted-foreground font-mono">
+                    {order.os_number}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    Início: {format(new Date(order.start_date), 'dd/MM/yyyy', { locale: ptBR })}
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span>Início: {format(new Date(order.start_date), 'dd/MM/yyyy', { locale: ptBR })}</span>
                   </div>
                   
-                  <p className="text-sm line-clamp-2">{order.description}</p>
+                  <p className="text-sm line-clamp-3 text-foreground/80">{order.description}</p>
 
                   {order.progress_images.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                        <Eye className="w-4 h-4" />
-                        Imagens do Progresso ({order.progress_images.length})
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                        <Eye className="w-4 h-4 text-primary" />
+                        Progresso ({order.progress_images.length})
                       </h4>
                       <div className="grid grid-cols-2 gap-2">
                         {order.progress_images.slice(0, 2).map((image, index) => (
-                          <img
+                          <div 
                             key={index}
-                            src={image}
-                            alt={`Progresso ${index + 1}`}
-                            className="w-full h-20 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                          />
+                            className="relative group overflow-hidden rounded-lg border border-border/50"
+                          >
+                            <img
+                              src={image}
+                              alt={`Progresso ${index + 1}`}
+                              className="w-full h-24 object-cover transition-transform duration-300 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
+                          </div>
                         ))}
                         {order.progress_images.length > 2 && (
-                          <div className="bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">
-                            +{order.progress_images.length - 2} mais
+                          <div className="bg-muted/50 rounded-lg border border-dashed border-border flex items-center justify-center text-sm font-medium text-muted-foreground">
+                            +{order.progress_images.length - 2}
                           </div>
                         )}
                       </div>
@@ -211,27 +220,32 @@ export default function Dashboard() {
                   )}
 
                   {order.report_images.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                        <FileImage className="w-4 h-4" />
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                        <FileImage className="w-4 h-4 text-primary" />
                         Relatórios ({order.report_images.length})
                       </h4>
                       <div className="grid grid-cols-2 gap-2">
                         {order.report_images.slice(0, 2).map((image, index) => (
-                          <img
+                          <div 
                             key={index}
-                            src={image}
-                            alt={`Relatório ${index + 1}`}
-                            className="w-full h-20 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                          />
+                            className="relative group overflow-hidden rounded-lg border border-border/50"
+                          >
+                            <img
+                              src={image}
+                              alt={`Relatório ${index + 1}`}
+                              className="w-full h-24 object-cover transition-transform duration-300 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button variant="outline" className="w-full gap-2 mt-4 hover:bg-primary hover:text-primary-foreground transition-colors">
                     <Eye className="w-4 h-4" />
-                    Ver Detalhes
+                    Ver Detalhes Completos
                   </Button>
                 </CardContent>
               </Card>
