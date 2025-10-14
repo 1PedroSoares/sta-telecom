@@ -50,7 +50,7 @@ export const Excelencia = () => {
             Trabalhamos com Excelência
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Nosso compromisso com a qualidade se reflete em cada aspecto do nosso trabalho, 
+            Nosso compromisso com a qualidade se reflete em cada aspecto do nosso trabalho,
             desde nossa equipe até nossos parceiros e procedimentos de segurança.
           </p>
         </div>
@@ -69,12 +69,12 @@ export const Excelencia = () => {
                   {card.description}
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="space-y-6">
                 <p className="text-foreground leading-relaxed">
                   {card.details}
                 </p>
-                
+
                 <div className="space-y-3">
                   <h4 className="font-semibold text-foreground text-lg">Diferenciais:</h4>
                   <ul className="space-y-2">
@@ -96,7 +96,7 @@ export const Excelencia = () => {
           <h3 className="text-3xl font-bold text-primary-foreground mb-8">
             Números que Comprovam Nossa Excelência
           </h3>
-          
+
           <div className="grid md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-primary-foreground mb-2">
@@ -106,7 +106,7 @@ export const Excelencia = () => {
                 Conformidade com Normas de Segurança
               </p>
             </div>
-            
+
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-primary-foreground mb-2">
                 Zero
@@ -115,7 +115,7 @@ export const Excelencia = () => {
                 Acidentes de Trabalho
               </p>
             </div>
-            
+
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-primary-foreground mb-2">
                 50+
@@ -124,7 +124,7 @@ export const Excelencia = () => {
                 Certificações Técnicas
               </p>
             </div>
-            
+
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold text-primary-foreground mb-2">
                 98%
