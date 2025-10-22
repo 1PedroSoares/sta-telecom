@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
     FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-    ArrowUp, ArrowDown
+    ArrowUp, ArrowDown, Loader2 // Adicionado Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -131,6 +131,10 @@ export default function FileManager() {
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
+    // --- NOVOS ESTADOS PARA DRAG & DROP ---
+    const [uploading, setUploading] = useState(false);
+    const [draggedOverFolder, setDraggedOverFolder] = useState<string | null>(null);
+
     // Redireciona se não for 'employee'
     useEffect(() => {
         if (user && user.role !== 'employee') {
@@ -160,9 +164,13 @@ export default function FileManager() {
             const newBreadcrumbs = [fileSystem];
             let currentPath = '/';
             for (const part of pathParts) {
-                currentPath = currentPath + part + '/';
-                const nextFolder = findFolderByPath(currentPath.slice(0, -1)); // Remove / do final
-                if (nextFolder) newBreadcrumbs.push(nextFolder);
+                // CORREÇÃO: Constrói o caminho corretamente
+                const constructedPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+                const nextFolder = findFolderByPath(constructedPath);
+                if (nextFolder) {
+                    newBreadcrumbs.push(nextFolder);
+                    currentPath = nextFolder.path; // Atualiza o currentPath para o path real da pasta
+                }
             }
             setBreadcrumbPath(newBreadcrumbs);
         }
@@ -256,10 +264,57 @@ export default function FileManager() {
         }));
     };
 
+    // --- FUNÇÃO PARA UPLOAD VIA DRAG & DROP ---
+    const handleDropUpload = async (files: File[], targetFolder: FolderNode) => {
+        if (uploading) return;
+
+        setUploading(true);
+        toast({ title: "Enviando arquivos...", description: `Para: ${targetFolder.name}` });
+
+        // Simulação de upload (como no UploadModal)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const newFilesData: FileNode[] = files.map((file, i) => ({
+            id: `new-file-${Date.now()}-${i}`,
+            name: file.name,
+            type: 'file',
+            fileType: (file.name.split('.').pop() || 'other') as FileType,
+            author: user?.fullName || 'Usuário',
+            modifiedAt: new Date().toISOString(),
+            size: file.size,
+            path: `${targetFolder.path === '/' ? '' : targetFolder.path}/${file.name}`
+        }));
+        // Fim da simulação
+
+        toast({ title: "Upload concluído!", description: `${files.length} arquivos enviados para ${targetFolder.name}.` });
+
+        // Se o drop foi na pasta atual, atualiza a lista
+        if (targetFolder.id === currentFolder.id) {
+            handleUploadComplete(newFilesData);
+        } else {
+            // Se o drop foi em uma subpasta, atualiza o 'children' dela (simulação)
+            setCurrentFolder(prev => ({
+                ...prev,
+                children: prev.children.map(child => {
+                    if (child.id === targetFolder.id && child.type === 'folder') {
+                        return { ...child, children: [...child.children, ...newFilesData] };
+                    }
+                    return child;
+                })
+            }));
+        }
+
+        setUploading(false);
+    };
+
     if (!user) return <div>Carregando...</div>; // Proteção
 
     return (
-        <div className="min-h-screen bg-muted/20 flex flex-col">
+        <div
+            className="min-h-screen bg-muted/20 flex flex-col"
+            // Eventos no container principal para limpar o estado de drag
+            onDragLeave={() => setDraggedOverFolder(null)}
+            onDrop={() => setDraggedOverFolder(null)}
+        >
             <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-10 shadow-sm">
                 <div className="container mx-auto px-4 py-4">
                     <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-2">
@@ -304,8 +359,12 @@ export default function FileManager() {
                                     <FolderPlus className="w-4 h-4 mr-2" />
                                     Nova Pasta
                                 </Button>
-                                <Button onClick={() => setIsUploadModalOpen(true)}>
-                                    <UploadCloud className="w-4 h-4 mr-2" />
+                                <Button onClick={() => setIsUploadModalOpen(true)} disabled={uploading}>
+                                    {uploading ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <UploadCloud className="w-4 h-4 mr-2" />
+                                    )}
                                     Enviar Arquivo
                                 </Button>
                             </div>
@@ -357,8 +416,40 @@ export default function FileManager() {
                                         filteredAndSortedItems.map(node => (
                                             <TableRow
                                                 key={node.id}
-                                                className={cn(node.type === 'folder' && "hover:bg-muted/50 cursor-pointer")}
-                                                onDoubleClick={() => node.type === 'folder' && navigateToFolder(node.path)}
+                                                // --- ALTERAÇÕES AQUI ---
+                                                className={cn(
+                                                    "transition-all",
+                                                    node.type === 'folder' && "hover:bg-muted/50 cursor-pointer",
+                                                    draggedOverFolder === node.id && "bg-primary/10 ring-2 ring-primary ring-inset" // Indicador visual
+                                                )}
+                                                // MUDANÇA: de onDoubleClick para onClick
+                                                onClick={() => node.type === 'folder' && navigateToFolder(node.path)}
+
+                                                // --- NOVOS EVENTOS PARA DRAG & DROP ---
+                                                onDragEnter={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    // Verifica se são arquivos sendo arrastados e se é uma pasta
+                                                    if (node.type === 'folder' && e.dataTransfer.types.includes('Files')) {
+                                                        setDraggedOverFolder(node.id);
+                                                    }
+                                                }}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault(); // Isso é CRUCIAL para permitir o drop
+                                                    e.stopPropagation();
+                                                }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setDraggedOverFolder(null); // Limpa o indicador
+
+                                                    if (node.type === 'folder') {
+                                                        const files = Array.from(e.dataTransfer.files);
+                                                        if (files.length > 0 && !uploading) {
+                                                            handleDropUpload(files, node);
+                                                        }
+                                                    }
+                                                }}
                                             >
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
@@ -374,10 +465,20 @@ export default function FileManager() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-1">
-                                                        <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => handleEdit(node)}>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="w-8 h-8"
+                                                            onClick={(e) => { e.stopPropagation(); handleEdit(node); }}
+                                                        >
                                                             <Edit className="w-4 h-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive hover:text-destructive" onClick={() => handleDelete(node)}>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="w-8 h-8 text-destructive hover:text-destructive"
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(node); }}
+                                                        >
                                                             <Trash2 className="w-4 h-4" />
                                                         </Button>
                                                     </div>

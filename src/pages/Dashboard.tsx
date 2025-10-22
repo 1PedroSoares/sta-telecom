@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
   FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-  ArrowUp, ArrowDown, LogOut, FileImage as FileImageHeader
+  ArrowUp, ArrowDown, LogOut, FileImage as FileImageHeader, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -133,6 +133,11 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
+  // --- NOVOS ESTADOS PARA DRAG & DROP ---
+  const [uploading, setUploading] = useState(false);
+  const [draggedOverFolder, setDraggedOverFolder] = useState<string | null>(null);
+
+
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -178,9 +183,13 @@ export default function Dashboard() {
       const newBreadcrumbs = [fileSystem];
       let currentPath = '/';
       for (const part of pathParts) {
-        currentPath = currentPath + part + '/';
-        const nextFolder = findFolderByPath(currentPath.slice(0, -1)); // Remove / do final
-        if (nextFolder) newBreadcrumbs.push(nextFolder);
+        // Correção: o path da pasta mockada 'f1' é '/f1', não '/f1/'
+        const constructedPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+        const nextFolder = findFolderByPath(constructedPath);
+        if (nextFolder) {
+          newBreadcrumbs.push(nextFolder);
+          currentPath = nextFolder.path; // Atualiza o currentPath para o path real da pasta
+        }
       }
       setBreadcrumbPath(newBreadcrumbs);
     }
@@ -266,12 +275,71 @@ export default function Dashboard() {
     }
   };
 
+  // Esta função agora é chamada pelo Modal
   const handleUploadComplete = (newFiles: FileNode[]) => {
     // Adiciona os novos arquivos (retornados pelo modal) ao estado atual
     setCurrentFolder(prev => ({
       ...prev,
       children: [...prev.children, ...newFiles],
     }));
+  };
+
+  // --- NOVA FUNÇÃO PARA UPLOAD VIA DRAG & DROP ---
+  const handleDropUpload = async (files: File[], targetFolder: FolderNode) => {
+    if (uploading) return;
+
+    setUploading(true);
+    toast({ title: "Enviando arquivos...", description: `Para: ${targetFolder.name}` });
+
+    // --- LÓGICA DE UPLOAD REAL (usando fetch para seu PHP) ---
+    // const formData = new FormData();
+    // files.forEach(file => formData.append('files[]', file));
+    // formData.append('destinationPath', targetFolder.path);
+    // try {
+    //   const response = await fetch('https://seu-dominio.com.br/upload.php', ...);
+    //   ...
+    // }
+
+    // Simulação de upload (como no UploadModal)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const newFilesData: FileNode[] = files.map((file, i) => ({
+      id: `new-file-${Date.now()}-${i}`,
+      name: file.name,
+      type: 'file',
+      fileType: (file.name.split('.').pop() || 'other') as FileType,
+      author: user?.fullName || 'Usuário',
+      modifiedAt: new Date().toISOString(),
+      size: file.size,
+      path: `${targetFolder.path === '/' ? '' : targetFolder.path}/${file.name}`
+    }));
+    // Fim da simulação
+
+    toast({ title: "Upload concluído!", description: `${files.length} arquivos enviados para ${targetFolder.name}.` });
+
+    // Em uma aplicação real, você invalidaria o cache do React Query ou faria um refetch.
+    // Para o mock, vamos atualizar o estado se o drop for em uma pasta visível.
+
+    // Se o drop foi na pasta atual, atualiza a lista
+    if (targetFolder.id === currentFolder.id) {
+      handleUploadComplete(newFilesData);
+    } else {
+      // Se o drop foi em uma subpasta, atualiza o 'children' dela
+      setCurrentFolder(prev => ({
+        ...prev,
+        children: prev.children.map(child => {
+          if (child.id === targetFolder.id && child.type === 'folder') {
+            // Adiciona os arquivos à subpasta
+            // NOTA: Isso não atualiza o 'fileSystem' global, apenas a visualização atual.
+            // Uma solução de estado real (como Redux ou Zustand) ou uma
+            // API lidaria com isso de forma mais robusta.
+            return { ...child, children: [...child.children, ...newFilesData] };
+          }
+          return child;
+        })
+      }));
+    }
+
+    setUploading(false);
   };
 
 
@@ -284,7 +352,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col">
+    <div
+      className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col"
+      // Eventos no container principal para limpar o estado de drag
+      onDragLeave={() => setDraggedOverFolder(null)}
+      onDrop={() => setDraggedOverFolder(null)}
+    >
       <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
@@ -340,8 +413,12 @@ export default function Dashboard() {
                   <FolderPlus className="w-4 h-4 mr-2" />
                   Nova Pasta
                 </Button>
-                <Button onClick={() => setIsUploadModalOpen(true)}>
-                  <UploadCloud className="w-4 h-4 mr-2" />
+                <Button onClick={() => setIsUploadModalOpen(true)} disabled={uploading}>
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-4 h-4 mr-2" />
+                  )}
                   Enviar Arquivo
                 </Button>
               </div>
@@ -393,8 +470,41 @@ export default function Dashboard() {
                     filteredAndSortedItems.map(node => (
                       <TableRow
                         key={node.id}
-                        className={cn(node.type === 'folder' && "hover:bg-muted/50 cursor-pointer")}
-                        onDoubleClick={() => node.type === 'folder' && navigateToFolder(node.path)}
+                        // --- ALTERAÇÕES AQUI ---
+                        className={cn(
+                          "transition-all",
+                          node.type === 'folder' && "hover:bg-muted/50 cursor-pointer",
+                          draggedOverFolder === node.id && "bg-primary/10 ring-2 ring-primary ring-inset" // Indicador visual
+                        )}
+                        // MUDANÇA: de onDoubleClick para onClick
+                        onClick={() => node.type === 'folder' && navigateToFolder(node.path)}
+
+                        // --- NOVOS EVENTOS PARA DRAG & DROP ---
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Verifica se são arquivos sendo arrastados e se é uma pasta
+                          if (node.type === 'folder' && e.dataTransfer.types.includes('Files')) {
+                            setDraggedOverFolder(node.id);
+                          }
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault(); // Isso é CRUCIAL para permitir o drop
+                          e.stopPropagation();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDraggedOverFolder(null); // Limpa o indicador
+
+                          if (node.type === 'folder') {
+                            const files = Array.from(e.dataTransfer.files);
+                            if (files.length > 0 && !uploading) {
+                              handleDropUpload(files, node);
+                            }
+                          }
+                        }}
+                      // --- FIM DAS MUDANÇAS ---
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -410,10 +520,20 @@ export default function Dashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => handleEdit(node)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-8 h-8"
+                              onClick={(e) => { e.stopPropagation(); handleEdit(node); }} // Adiciona stopPropagation para não navegar
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive hover:text-destructive" onClick={() => handleDelete(node)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-8 h-8 text-destructive hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(node); }} // Adiciona stopPropagation para não navegar
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
