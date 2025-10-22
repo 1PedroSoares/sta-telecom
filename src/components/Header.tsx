@@ -1,16 +1,18 @@
+// src/components/Header.tsx
+
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LoginModal } from '@/components/LoginModal';
 
 interface HeaderProps {
   onSectionClick: (sectionId: string) => void;
 }
 
 export const Header = ({ onSectionClick }: HeaderProps) => {
+  const navigate = useNavigate(); // Instanciar useNavigate
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +33,11 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
 
   const handleNavClick = (sectionId: string) => {
     onSectionClick(sectionId);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleLoginClick = () => {
+    navigate('/auth'); // Navegar para a página de login
     setIsMobileMenuOpen(false);
   };
 
@@ -61,7 +68,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
             </Button>
           ))}
           <Button
-            onClick={() => setIsLoginModalOpen(true)}
+            onClick={handleLoginClick} // Atualizado
             className="btn-tech ml-4"
           >
             Login
@@ -94,7 +101,7 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
               </Button>
             ))}
             <Button
-              onClick={() => setIsLoginModalOpen(true)}
+              onClick={handleLoginClick} // Atualizado
               className="btn-tech justify-start mt-4"
             >
               Login
@@ -103,10 +110,12 @@ export const Header = ({ onSectionClick }: HeaderProps) => {
         </div>
       )}
 
-      <LoginModal
+      {/* O LoginModal foi removido */}
+      {/* <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-      />
+      /> 
+      */}
     </header>
   );
 };
