@@ -1,148 +1,158 @@
-import React, { useCallback, useState } from 'react';
-import { useDropzone, FileWithPath } from 'react-dropzone';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { UploadCloud, File, X, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState } from 'react'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { api } from '@/lib/api' // Importe o nosso cliente Axios
+import { Alert, AlertDescription } from './ui/alert'
+import { Terminal } from 'lucide-react'
 
+// 1. Defina as props que o modal irá receber
 interface UploadModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    currentPath: string;
-    onUploadComplete: (newFiles: any[]) => void; // Tipo 'any' para mock
+    isOpen: boolean
+    onClose: () => void
+    projetoId: string | null // O ID do projeto para o qual estamos enviando o arquivo
 }
 
-export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, currentPath, onUploadComplete }) => {
-    const [files, setFiles] = useState<FileWithPath[]>([]);
-    const [uploading, setUploading] = useState(false);
-    const { toast } = useToast();
+export default function UploadModal({
+    isOpen,
+    onClose,
+    projetoId,
+}: UploadModalProps) {
+    // 2. Estados para controlar o ficheiro, carregamento e erros
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-    const onDrop = useCallback((acceptedFiles: FileWithPath[]) => {
-        setFiles(prev => [...prev, ...acceptedFiles]);
-    }, []);
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        accept: {
-            'application/pdf': ['.pdf'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-            'application/msword': ['.doc'],
-            'application/vnd.ms-excel': ['.xls'],
-            'image/jpeg': ['.jpg', '.jpeg'],
-            'image/png': ['.png'],
-            'application/zip': ['.zip'],
-            'text/plain': ['.txt']
+    // 3. Função para atualizar o ficheiro selecionado
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            setSelectedFile(event.target.files[0])
+            setError(null) // Limpa erros anteriores
         }
-    });
+    }
 
-    const removeFile = (file: FileWithPath) => {
-        setFiles(prev => prev.filter(f => f.path !== file.path));
-    };
-
+    // 4. Função principal de upload
     const handleUpload = async () => {
-        setUploading(true);
-        toast({ title: "Enviando arquivos..." });
+        // Validação
+        if (!selectedFile) {
+            setError('Por favor, selecione um ficheiro primeiro.')
+            return
+        }
+        if (!projetoId) {
+            setError('Erro: ID do projeto não encontrado.')
+            return
+        }
 
-        // --- LÓGICA DE UPLOAD REAL (usando fetch para seu PHP) ---
-        const formData = new FormData();
-        files.forEach(file => formData.append('files[]', file));
-        formData.append('destinationPath', currentPath);
+        setIsLoading(true)
+        setError(null)
+
+        // 5. Crie o FormData
+        // O backend espera 'multipart/form-data' para uploads
+        const formData = new FormData()
+
+        // Os nomes 'arquivo' e 'projeto_id' devem corresponder
+        // aos nomes definidos no StoreArquivoRequest do Laravel
+        formData.append('arquivo', selectedFile)
+        formData.append('projeto_id', projetoId)
 
         try {
-            // const response = await fetch('https://seu-dominio.com.br/upload.php', {
-            //   method: 'POST',
-            //   body: formData,
-            // });
-            // if (!response.ok) throw new Error('Falha no upload');
-            // const newFilesData = await response.json();
+            // 6. Envie para a API do Laravel
+            // A rota '/api/arquivos' é definida em api.php
+            // A lógica está em ArquivoController.php
+            await api.post('/api/arquivos', formData, {
+                headers: {
+                    // Essencial para o Axios enviar arquivos
+                    'Content-Type': 'multipart/form-data',
+                },
+            })
 
-            // Simulação de upload
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const newFilesData = files.map((file, i) => ({
-                id: `new-file-${Date.now()}-${i}`,
-                name: file.name,
-                type: 'file', // Tipo base
-                fileType: file.name.split('.').pop() || 'other', // Detecção simples de fileType
-                author: 'Usuário Logado', // Você pode pegar do context
-                modifiedAt: new Date().toISOString(),
-                size: file.size,
-                path: `${currentPath === '/' ? '' : currentPath}/${file.name}`
-            }));
-            // Fim da simulação
-
-            toast({ title: "Upload concluído!", description: `${files.length} arquivos enviados.` });
-            onUploadComplete(newFilesData); // Atualiza a tabela
-            handleClose();
-
-        } catch (error) {
-            toast({ title: "Erro no upload", description: (error as Error).message, variant: "destructive" });
+            // Sucesso!
+            alert('Arquivo enviado com sucesso!') // (Idealmente, use um Toast/Sonner)
+            handleClose() // Fecha o modal
+        } catch (err: any) {
+            console.error('Erro no upload:', err)
+            if (err.response && err.response.status === 422) {
+                // Erro de validação do Laravel
+                setError(
+                    'Erro de validação: ' +
+                    Object.values(err.response.data.errors).join(', '),
+                )
+            } else {
+                setError('Ocorreu um erro ao enviar o ficheiro. Tente novamente.')
+            }
         } finally {
-            setUploading(false);
+            setIsLoading(false)
         }
-    };
+    }
 
+    // 7. Função para limpar o estado ao fechar
     const handleClose = () => {
-        setFiles([]);
-        onClose();
-    };
+        setSelectedFile(null)
+        setIsLoading(false)
+        setError(null)
+        onClose()
+    }
 
     return (
+        // 'open' e 'onOpenChange' controlam se o modal está visível
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Enviar Arquivos</DialogTitle>
+                    <DialogTitle>Enviar Novo Arquivo</DialogTitle>
                     <DialogDescription>
-                        Arraste e solte arquivos ou clique na área abaixo.
-                        Enviando para: <span className="font-medium text-primary">{currentPath === '/' ? 'Início' : currentPath}</span>
+                        Selecione um ficheiro do seu computador para adicionar ao projeto.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div
-                    {...getRootProps()}
-                    className={cn(
-                        "border-2 border-dashed border-primary/30 rounded-lg p-12 text-center cursor-pointer transition-colors",
-                        isDragActive ? "bg-primary/10 border-primary" : "hover:border-primary/50"
+                <div className="grid gap-4 py-4">
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                        <Label htmlFor="file-upload">Selecionar Ficheiro</Label>
+                        <Input
+                            id="file-upload"
+                            type="file"
+                            onChange={handleFileChange}
+                            disabled={isLoading}
+                        />
+                    </div>
+                    {selectedFile && !isLoading && (
+                        <p className="text-sm text-muted-foreground">
+                            Ficheiro selecionado: {selectedFile.name}
+                        </p>
                     )}
-                >
-                    <input {...getInputProps()} />
-                    <UploadCloud className="w-16 h-16 mx-auto text-muted-foreground" />
-                    <p className="mt-4 font-medium">Arraste arquivos aqui ou clique para selecionar</p>
-                    <p className="text-sm text-muted-foreground">PDF, DOCX, XLSX, Imagens, etc.</p>
+
+                    {/* Exibe mensagens de erro */}
+                    {error && (
+                        <Alert variant="destructive">
+                            <Terminal className="h-4 w-4" />
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
                 </div>
 
-                {files.length > 0 && (
-                    <div className="mt-4 max-h-48 overflow-y-auto space-y-2 pr-2">
-                        <h4 className="font-medium">Arquivos Prontos para Envio:</h4>
-                        {files.map((file, i) => (
-                            <div key={i} className="flex items-center justify-between bg-muted p-2 rounded-md">
-                                <div className="flex items-center gap-2 truncate">
-                                    <File className="w-4 h-4 flex-shrink-0" />
-                                    <span className="text-sm truncate" title={file.name}>{file.name}</span>
-                                </div>
-                                <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => removeFile(file)}>
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <DialogFooter className="mt-6">
-                    <DialogClose asChild>
-                        <Button variant="outline" onClick={handleClose} disabled={uploading}>Cancelar</Button>
-                    </DialogClose>
-                    <Button onClick={handleUpload} disabled={files.length === 0 || uploading}>
-                        {uploading ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                            <UploadCloud className="w-4 h-4 mr-2" />
-                        )}
-                        Enviar {files.length > 0 ? `(${files.length})` : ''}
+                <DialogFooter>
+                    <Button
+                        variant="outline"
+                        onClick={handleClose}
+                        disabled={isLoading}
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={handleUpload}
+                        disabled={isLoading || !selectedFile}
+                    >
+                        {isLoading ? 'Enviando...' : 'Enviar'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-};
+    )
+}

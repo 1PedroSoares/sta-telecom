@@ -10,43 +10,56 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User } from 'lucide-react';
 
-export default function Auth() {
-  const navigate = useNavigate();
-  const { signIn, user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+export default function AuthPage() {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await login(email, password);
+      // O AuthContext já cuidou de definir o usuário,
+      // o <App /> (ou router) vai redirecionar automaticamente.
+    } catch (err) {
+      setError('Credenciais inválidas. Tente novamente.');
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    if (user) {
+    if (User) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [User, navigate]);
 
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
   });
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // const handleLogin = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
 
-    const { error } = await signIn(loginForm.email, loginForm.password);
+  //   const { error } = await signIn(loginForm.email, loginForm.password);
 
-    if (error) {
-      toast({
-        title: 'Erro no login',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Login realizado com sucesso!',
-        description: 'Redirecionando para o dashboard...',
-      });
-    }
-    setLoading(false);
-  };
+  //   if (error) {
+  //     toast({
+  //       title: 'Erro no login',
+  //       description: error.message,
+  //       variant: 'destructive',
+  //     });
+  //   } else {
+  //     toast({
+  //       title: 'Login realizado com sucesso!',
+  //       description: 'Redirecionando para o dashboard...',
+  //     });
+  //   }
+  //   setLoading(false);
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex items-center justify-center p-4">
