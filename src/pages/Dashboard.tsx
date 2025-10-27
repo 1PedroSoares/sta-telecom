@@ -1,11 +1,11 @@
 // sta/src/pages/Dashboard.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
   FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-  ArrowUp, ArrowDown, LogOut, FileImage as FileImageHeader
+  ArrowUp, ArrowDown, LogOut, FileImage as FileImageHeader , Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -22,9 +22,29 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/Footer';
 import UploadModal from '@/components/UploadModal';
+import { api } from '@/lib/api';
 
 // --- Tipos de Dados ---
 type FileType = 'pdf' | 'doc' | 'xls' | 'img' | 'zip' | 'other';
+
+type ApiArquivo = {
+  id: string;
+  nome: string;
+  mime_type: string | null;
+  tamanho_bytes: number;
+  data_upload_iso: string;
+  enviado_por?: { nome: string; }; // Simplificado
+  // url_download: string; // Não precisamos diretamente aqui
+};
+
+type ApiProjeto = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  criado_em: string; // Ou o nome correto retornado pela API
+  cliente?: { nome: string; }; // Simplificado
+  arquivos: ApiArquivo[];
+};
 
 type NodeBase = {
   id: string;
@@ -64,6 +84,17 @@ const mockData: FolderNode = {
       ]
     },
 ],
+};
+
+
+const getFileTypeFromMime = (mimeType: string | null | undefined): FileType => {
+    if (!mimeType) return 'other';
+    if (mimeType.includes('pdf')) return 'pdf';
+    if (mimeType.includes('word')) return 'doc';
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'xls';
+    if (mimeType.startsWith('image/')) return 'img';
+    if (mimeType.includes('zip')) return 'zip';
+    return 'other';
 };
 
 // --- Funções Auxiliares ---
@@ -116,9 +147,10 @@ const formatDate = (isoString: string) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   // --- Estados do Gerenciador de Arquivos ---
   const [fileSystem, setFileSystem] = useState<FolderNode>(mockData);
@@ -127,6 +159,82 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+
+  const transformApiProjetoToFolderNode = useCallback((apiProjeto: ApiProjeto): FolderNode => {
+    const projectFolder: FolderNode = {
+      id: String(apiProjeto.id),
+      name: apiProjeto.nome,
+      type: 'folder',
+      path: '/', // Cliente vê seu projeto como a raiz
+      author: apiProjeto.cliente?.nome || 'Cliente',
+      // Usar a data de criação do projeto ou a data atual se não disponível
+      modifiedAt: apiProjeto.criado_em || new Date().toISOString(),
+      size: 0,
+      children: apiProjeto.arquivos.map(apiArquivo => ({
+        id: String(apiArquivo.id),
+        name: apiArquivo.nome,
+        type: 'file',
+        fileType: getFileTypeFromMime(apiArquivo.mime_type),
+        path: `/${apiArquivo.nome}`, // Arquivos diretamente na raiz do projeto
+        author: apiArquivo.enviado_por?.nome || 'Desconhecido',
+        modifiedAt: apiArquivo.data_upload_iso,
+        size: apiArquivo.tamanho_bytes,
+      })),
+    };
+    return projectFolder;
+  }, []);
+
+  useEffect(() => {
+    const fetchClientData = async () => {
+      // Não busca se autenticação ainda está carregando ou se não há usuário
+      if (isAuthLoading || !user) {
+         if (!isAuthLoading && !user) setIsDataLoading(false); // Para loading se não logado
+         return;
+      }
+      // Só busca se for cliente (se for employee, o FileManager fará a busca)
+      if (user.role !== 'client') {
+          setIsDataLoading(false); // Employee não carrega dados aqui
+          return;
+      }
+
+      setIsDataLoading(true); // Inicia loading dos dados
+      try {
+        // Usa a rota /api/meu-projeto para clientes
+        const response = await api.get<{ data: ApiProjeto }>('/meu-projeto');
+        const projetoData = response.data.data; // Acessa os dados aninhados
+
+        if (projetoData) {
+          // Transforma a resposta da API para o formato do frontend
+          const projectFolder = transformApiProjetoToFolderNode(projetoData);
+
+          // Atualiza os estados
+          setFileSystem(projectFolder);
+          setCurrentFolder(projectFolder);
+          setBreadcrumbPath([projectFolder]);
+        } else {
+          // Caso o cliente não tenha projeto ainda
+          toast({ title: "Nenhum projeto encontrado", variant: "destructive" });
+          // Configurar um estado inicial vazio talvez?
+          // Ex: const emptyRoot: FolderNode = { id: 'root', name: 'Meus Arquivos', type: 'folder', path: '/', ... children: [] };
+          // setFileSystem(emptyRoot); setCurrentFolder(emptyRoot); setBreadcrumbPath([emptyRoot]);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar dados do projeto:", error);
+        toast({
+          title: "Erro ao carregar arquivos",
+          description: error.response?.data?.message || error.message || "Tente recarregar a página.",
+          variant: "destructive",
+        });
+        // Poderia definir um estado de erro aqui
+      } finally {
+        setIsDataLoading(false); // Finaliza loading dos dados
+      }
+    };
+
+    fetchClientData();
+  // Depende do usuário, status de loading da auth e da função de transformação
+  }, [user, isAuthLoading, transformApiProjetoToFolderNode, toast]);
 
  useEffect(() => {
       if (user) { // Apenas executa se o user existir
@@ -154,34 +262,53 @@ export default function Dashboard() {
   // --- Funções do Gerenciador de Arquivos ---
 
   // Encontra uma pasta no sistema de arquivos
-  const findFolderByPath = (path: string, node: FolderNode = fileSystem): FolderNode | null => {
+ const findFolderByPath = useCallback((path: string, node: FolderNode | null = fileSystem): FolderNode | null => {
+    if (!node) return null; // Retorna null se fileSystem ainda não carregou
     if (node.path === path) return node;
     for (const child of node.children) {
       if (child.type === 'folder') {
-        const found = findFolderByPath(path, child);
+        const found = findFolderByPath(path, child); // Recursão continua igual
         if (found) return found;
       }
     }
     return null;
-  };
+  }, [fileSystem]);
 
   // Navega para uma pasta
-  const navigateToFolder = (path: string) => {
+ const navigateToFolder = useCallback((path: string) => {
+    if (!fileSystem) return; // Não faz nada se o sistema não carregou
+
     const folder = findFolderByPath(path);
     if (folder) {
       setCurrentFolder(folder);
-      // Constrói breadcrumbs
-      const pathParts = path.split('/').filter(Boolean);
-      const newBreadcrumbs = [fileSystem];
+      // Constrói breadcrumbs (lógica adaptada para garantir que fileSystem existe)
+      const pathParts = path === '/' ? [] : path.split('/').filter(Boolean); // Trata a raiz
+      const newBreadcrumbs = [fileSystem]; // Começa sempre com a raiz
       let currentPath = '/';
+
       for (const part of pathParts) {
-        currentPath = currentPath + part + '/';
-        const nextFolder = findFolderByPath(currentPath.slice(0, -1)); // Remove / do final
-        if (nextFolder) newBreadcrumbs.push(nextFolder);
+        // Constrói o caminho incrementalmente
+        const nextPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+        const nextFolder = findFolderByPath(nextPath); // Usa a função segura findFolderByPath
+
+        // Adiciona ao breadcrumb apenas se encontrar a pasta e se o caminho for diferente da raiz
+        if (nextFolder && nextFolder.path !== '/') {
+            newBreadcrumbs.push(nextFolder);
+            currentPath = nextFolder.path; // Atualiza o caminho atual para o da pasta encontrada
+        } else if (path === '/') {
+            // Se o target for a raiz, só a raiz deve estar no breadcrumb
+            break; // Sai do loop
+        }
+         // Se não encontrar (não deveria acontecer em estrutura simples), ignora
       }
-      setBreadcrumbPath(newBreadcrumbs);
+       setBreadcrumbPath(newBreadcrumbs);
+    } else {
+        console.warn(`Tentativa de navegar para pasta não encontrada: ${path}`);
+         // Opcional: Redirecionar para a raiz ou mostrar erro
+         setCurrentFolder(fileSystem); // Volta para a raiz como fallback
+         setBreadcrumbPath([fileSystem]);
     }
-  };
+  }, [fileSystem, findFolderByPath]);
 
   // Lógica de filtragem e ordenação
   const filteredAndSortedItems = useMemo(() => {
@@ -189,7 +316,8 @@ export default function Dashboard() {
 
     // 1. Filtrar por pesquisa
     const filtered = currentFolder.children.filter(node =>
-      node.name.toLowerCase().includes(searchTerm.toLowerCase())
+      // ADICIONE "node.name &&" AQUI
+      node.name && node.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // 2. Ordenar
@@ -227,57 +355,106 @@ export default function Dashboard() {
   };
 
   // Ações
-  const handleCreateFolder = () => {
+ const handleCreateFolder = () => {
+    if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+
     const folderName = prompt("Nome da nova pasta:");
     if (folderName) {
-      // Simulação de criação
+      // Simulação de criação - IDEALMENTE CHAMARIA A API AQUI
       const newFolder: FolderNode = {
         id: `new-folder-${Date.now()}`, name: folderName,
+        // Path construído corretamente
         path: `${currentFolder.path === '/' ? '' : currentFolder.path}/${folderName}`,
         type: 'folder', author: user?.fullName || 'Usuário',
         modifiedAt: new Date().toISOString(), size: 0, children: []
       };
 
-      // Atualiza o estado (de forma imutável)
-      // (Esta é uma simulação simples, um backend real faria isso)
-      setCurrentFolder(prev => ({ ...prev, children: [newFolder, ...prev.children] }));
+      // Atualiza o estado localmente (imutável)
+      setCurrentFolder(prev => prev ? ({ ...prev, children: [newFolder, ...prev.children] }) : null);
 
-      toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi criada.` });
+      toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi criada localmente.` });
+      // TODO: Adicionar chamada API para criar a pasta no backend
     }
   };
 
   const handleEdit = (node: FileSystemNode) => {
+    if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+
     const newName = prompt(`Novo nome para "${node.name}":`, node.name);
     if (newName && newName !== node.name) {
-      // Simulação de edição
-      toast({ title: "Renomeado!", description: `"${node.name}" agora é "${newName}".` });
-      // (Aqui você atualizaria o estado imutavelmente)
+      // Simulação de edição - IDEALMENTE CHAMARIA A API AQUI
+      setCurrentFolder(prev => prev ? ({
+          ...prev,
+          children: prev.children.map(child =>
+              child.id === node.id ? { ...child, name: newName } : child
+          )
+      }) : null);
+      toast({ title: "Renomeado!", description: `"${node.name}" agora é "${newName}" (localmente).` });
+      // TODO: Adicionar chamada API para renomear no backend
     }
   };
 
   const handleDelete = (node: FileSystemNode) => {
+     if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+
     if (confirm(`Tem certeza que deseja excluir "${node.name}"?`)) {
-      // Simulação de exclusão
-      toast({ title: "Excluído!", description: `"${node.name}" foi excluído.` });
-      // (Aqui você atualizaria o estado imutavelmente)
+      // Simulação de exclusão - IDEALMENTE CHAMARIA A API AQUI
+       setCurrentFolder(prev => prev ? ({
+           ...prev,
+           children: prev.children.filter(child => child.id !== node.id)
+       }) : null);
+      toast({ title: "Excluído!", description: `"${node.name}" foi excluído (localmente).` });
+      // TODO: Adicionar chamada API para excluir no backend
     }
   };
 
-  const handleUploadComplete = (newFiles: FileNode[]) => {
-    // Adiciona os novos arquivos (retornados pelo modal) ao estado atual
-    setCurrentFolder(prev => ({
-      ...prev,
-      children: [...prev.children, ...newFiles],
-    }));
+ const handleUploadComplete = (newFiles: FileNode[]) => {
+      // Adiciona os novos arquivos ao estado atual (lógica existente ok, mas verifica currentFolder)
+      if (!currentFolder) return;
+      setCurrentFolder(prev => prev ? ({
+          ...prev,
+          children: [...prev.children, ...newFiles],
+      }) : null);
   };
 
-
-  if (loading) {
+if (isAuthLoading || isDataLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex flex-col items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">
+          {isAuthLoading ? 'Verificando autenticação...' : 'Carregando arquivos...'}
+        </p>
       </div>
     );
+  }
+
+  // Se terminou de carregar mas não há pasta atual (ex: erro na API ou cliente sem projeto)
+   if (!currentFolder) {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 flex flex-col">
+              {/* Manter o Header para logout */}
+              <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-sm sticky top-0 z-50">
+                  <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                      <div>
+                          <h1 className="text-2xl font-bold text-foreground">
+                              {user?.role === 'employee' ? 'Portal do Colaborador' : 'Portal do Cliente'}
+                          </h1>
+                          <p className="text-muted-foreground">Bem-vindo, {user?.fullName}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                          <Button variant="outline" onClick={handleLogout} className="gap-2">
+                              <LogOut className="w-4 h-4" />
+                              Sair
+                          </Button>
+                      </div>
+                  </div>
+              </header>
+              <main className="container mx-auto px-4 py-8 flex-1 flex items-center justify-center">
+                  <p className="text-xl text-muted-foreground">Não foi possível carregar os arquivos ou nenhum projeto foi encontrado.</p>
+              </main>
+              <Footer />
+          </div>
+      );
   }
 
   return (
@@ -332,17 +509,20 @@ export default function Dashboard() {
               </Breadcrumb>
 
               {/* Botões de Ação */}
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCreateFolder}>
-                  <FolderPlus className="w-4 h-4 mr-2" />
-                  Nova Pasta
-                </Button>
-                <Button onClick={() => setIsUploadModalOpen(true)}>
-                  <UploadCloud className="w-4 h-4 mr-2" />
-                  Enviar Arquivo
-                </Button>
+       {user?.role === 'employee' && ( // <-- Starts here
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handleCreateFolder}>
+                    <FolderPlus className="w-4 h-4 mr-2" />
+                    Nova Pasta
+                  </Button>
+                  <Button onClick={() => setIsUploadModalOpen(true)}>
+                    <UploadCloud className="w-4 h-4 mr-2" />
+                    Enviar Arquivo
+                  </Button>
+                </div>
+              )}
+
               </div>
-            </div>
 
             {/* Barra de Pesquisa */}
             <div className="mt-6 relative">
@@ -429,12 +609,12 @@ export default function Dashboard() {
       <Footer />
 
       {/* Modal de Upload */}
-      <UploadModal
+ <UploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        projetoId={currentFolder?.id ?? null}
-        currentPath={currentFolder?.path || '/'}
-        onUploadComplete={handleUploadComplete}
+        projetoId={currentFolder?.id ?? null} // Passa o ID da pasta atual
+        currentPath={currentFolder?.path || '/'} // Passa o caminho atual
+        onUploadComplete={handleUploadComplete} // Passa a função de callback
       />
     </div>
   );

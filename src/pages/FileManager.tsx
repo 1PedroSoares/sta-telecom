@@ -497,9 +497,10 @@ export default function FileManager() {
             <Footer />
 
             {/* Modal de Upload */}
-            <UploadModal
+          <UploadModal
                 isOpen={isUploadModalOpen}
                 onClose={() => setIsUploadModalOpen(false)}
+                projetoId={currentFolder?.id ?? null} // <-- ADICIONE ESTA LINHA
                 currentPath={currentFolder?.path || '/'}
                 onUploadComplete={handleUploadComplete}
             />
