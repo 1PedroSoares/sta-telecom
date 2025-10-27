@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
@@ -25,6 +25,15 @@ import { api } from '@/lib/api';
 // --- Tipos de Dados ---
 type FileType = 'pdf' | 'doc' | 'xls' | 'img' | 'zip' | 'other';
 
+type ApiArquivo = {
+  id: string;
+  nome: string;
+  mime_type: string | null;
+  tamanho_bytes: number;
+  data_upload_iso: string;
+  enviado_por?: { nome: string; }; // Simplificado
+};
+
 type NodeBase = {
     id: string;
     name: string;
@@ -48,6 +57,16 @@ type FileSystemNode = FileNode | FolderNode;
 
 type SortKey = 'name' | 'type' | 'author' | 'modifiedAt' | 'size';
 type SortDirection = 'asc' | 'desc';
+
+const getFileTypeFromMime = (mimeType: string | null | undefined): FileType => {
+    if (!mimeType) return 'other';
+    if (mimeType.includes('pdf')) return 'pdf';
+    if (mimeType.includes('word')) return 'doc';
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'xls';
+    if (mimeType.startsWith('image/')) return 'img';
+    if (mimeType.includes('zip')) return 'zip';
+    return 'other';
+};
 
 // --- Dados Mockados Iniciais ---
 const mockData: FolderNode = {
@@ -210,26 +229,91 @@ export default function FileManager() {
     };
 
     // Navega para uma pasta
-    const navigateToFolder = (path: string) => {
-        const folder = findFolderByPath(path);
-        if (folder) {
-            setCurrentFolder(folder);
-            // Constrói breadcrumbs
-            const pathParts = path.split('/').filter(Boolean);
-            const newBreadcrumbs = [fileSystem];
-            let currentPath = '/';
-            for (const part of pathParts) {
-                // CORREÇÃO: Constrói o caminho corretamente
-                const constructedPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
-                const nextFolder = findFolderByPath(constructedPath);
-                if (nextFolder) {
-                    newBreadcrumbs.push(nextFolder);
-                    currentPath = nextFolder.path; // Atualiza o currentPath para o path real da pasta
-                }
-            }
-            setBreadcrumbPath(newBreadcrumbs);
+const navigateToFolder = useCallback(async (path: string) => { // <-- Marque como async
+        if (!fileSystem) return;
+
+        // Encontra a pasta alvo na estrutura local *primeiro*
+        // para obter o ID correto antes de buscar dados completos
+        const targetFolderLocal = findFolderByPath(path);
+        
+        if (!targetFolderLocal) {
+            console.warn(`Tentativa de navegar para pasta não encontrada localmente: ${path}`);
+            setCurrentFolder(fileSystem); // Volta para a raiz como fallback
+            setBreadcrumbPath([fileSystem]);
+            return;
         }
-    };
+
+        // --- LÓGICA DE BUSCA DE DADOS ---
+        let folderDataToShow = targetFolderLocal; // Usa a pasta local por padrão
+
+        // Se NÃO for a pasta raiz, busca os detalhes (incluindo arquivos) da API
+        if (targetFolderLocal.id !== 'root') {
+            setIsLoadingData(true); // <-- Mostra loading ao entrar na pasta
+            try {
+                // Usa o ID numérico do projeto para buscar na API
+                const response = await api.get(`/projetos/${targetFolderLocal.id}`);
+                const projetoComArquivos = response.data.data; // A API retorna { data: Projeto }
+
+                // Transforma a resposta da API (incluindo arquivos) para FolderNode
+                folderDataToShow = {
+                    id: String(projetoComArquivos.id),
+                    name: projetoComArquivos.nome,
+                    type: 'folder',
+                    path: targetFolderLocal.path, // Mantém o path local consistente
+                    author: projetoComArquivos.cliente?.nome || 'Gestor',
+                    modifiedAt: projetoComArquivos.criado_em || new Date().toISOString(),
+                    size: 0,
+                    // Transforma os arquivos da API em FileNode
+                    children: projetoComArquivos.arquivos.map((apiArquivo: ApiArquivo) => ({
+                        id: String(apiArquivo.id),
+                        name: apiArquivo.nome,
+                        type: 'file',
+                        fileType: getFileTypeFromMime(apiArquivo.mime_type),
+                        path: `${targetFolderLocal.path}/${apiArquivo.nome}`, // Constrói path do arquivo
+                        author: apiArquivo.enviado_por?.nome || 'Desconhecido',
+                        modifiedAt: apiArquivo.data_upload_iso,
+                        size: apiArquivo.tamanho_bytes,
+                    })),
+                };
+
+            } catch (error: any) {
+                console.error(`Erro ao buscar detalhes do projeto ${targetFolderLocal.id}:`, error);
+                toast({
+                    title: "Erro ao carregar pasta",
+                    description: "Não foi possível buscar os arquivos deste projeto.",
+                    variant: "destructive"
+                });
+                // Poderia voltar para a raiz ou manter a pasta local sem arquivos
+                setCurrentFolder(fileSystem); 
+                setBreadcrumbPath([fileSystem]);
+                setIsLoadingData(false);
+                return; // Para a execução
+            } finally {
+                setIsLoadingData(false); // <-- Esconde o loading
+            }
+        }
+        setCurrentFolder(folderDataToShow);
+
+        // Constrói breadcrumbs (lógica existente adaptada)
+        const pathParts = path === '/' ? [] : path.split('/').filter(Boolean);
+        const newBreadcrumbs = [fileSystem]; // Começa sempre com a raiz do fileSystem
+        let currentPath = '/';
+
+        // Reconstrói a partir da raiz local para garantir consistência
+        for (const part of pathParts) {
+            const nextPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+            const breadcrumbNode = findFolderByPath(nextPath, fileSystem); // Busca na estrutura *local*
+            if (breadcrumbNode && breadcrumbNode.path !== '/') {
+                 // Usa o NOME da pasta local encontrada para o breadcrumb
+                newBreadcrumbs.push({ ...breadcrumbNode, name: breadcrumbNode.name }); 
+                currentPath = breadcrumbNode.path; 
+            } else if (path === '/') {
+                break; 
+            }
+        }
+       setBreadcrumbPath(newBreadcrumbs);
+
+    }, [fileSystem, findFolderByPath, toast]);
 
     // Lógica de filtragem e ordenação
     const filteredAndSortedItems = useMemo(() => {
