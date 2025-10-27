@@ -193,7 +193,7 @@ export default function Dashboard() {
          return;
       }
       // Só busca se for cliente (se for employee, o FileManager fará a busca)
-      if (user.role !== 'client') {
+      if (user.role !== 'cliente') {
           setIsDataLoading(false); // Employee não carrega dados aqui
           return;
       }
@@ -356,7 +356,7 @@ export default function Dashboard() {
 
   // Ações
  const handleCreateFolder = () => {
-    if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+    if (!currentFolder || !user || user.role !== 'gestor') return; // Segurança extra
 
     const folderName = prompt("Nome da nova pasta:");
     if (folderName) {
@@ -378,7 +378,7 @@ export default function Dashboard() {
   };
 
   const handleEdit = (node: FileSystemNode) => {
-    if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+    if (!currentFolder || !user || user.role !== 'gestor') return; // Segurança extra
 
     const newName = prompt(`Novo nome para "${node.name}":`, node.name);
     if (newName && newName !== node.name) {
@@ -395,7 +395,7 @@ export default function Dashboard() {
   };
 
   const handleDelete = (node: FileSystemNode) => {
-     if (!currentFolder || !user || user.role !== 'employee') return; // Segurança extra
+     if (!currentFolder || !user || user.role !== 'gestor') return; // Segurança extra
 
     if (confirm(`Tem certeza que deseja excluir "${node.name}"?`)) {
       // Simulação de exclusão - IDEALMENTE CHAMARIA A API AQUI
@@ -437,7 +437,7 @@ if (isAuthLoading || isDataLoading) {
                   <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                       <div>
                           <h1 className="text-2xl font-bold text-foreground">
-                              {user?.role === 'employee' ? 'Portal do Colaborador' : 'Portal do Cliente'}
+                              {user?.role === 'gestor' ? 'Portal do Colaborador' : 'Portal do Cliente'}
                           </h1>
                           <p className="text-muted-foreground">Bem-vindo, {user?.fullName}</p>
                       </div>
@@ -463,12 +463,12 @@ if (isAuthLoading || isDataLoading) {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {user?.role === 'employee' ? 'Portal do Colaborador' : 'Portal do Cliente'}
+              {user?.role === 'gestor' ? 'Portal do Colaborador' : 'Portal do Cliente'}
             </h1>
             <p className="text-muted-foreground">Bem-vindo, {user?.fullName}</p>
           </div>
           <div className="flex items-center gap-4">
-            {user?.role === 'employee' && (
+            {user?.role === 'gestor' && (
               <Button onClick={() => navigate('/file-manager')} className="gap-2 bg-primary hover:bg-primary/90">
                 <FileImageHeader className="w-4 h-4" />
                 Gerenciar Arquivos
@@ -509,7 +509,7 @@ if (isAuthLoading || isDataLoading) {
               </Breadcrumb>
 
               {/* Botões de Ação */}
-       {user?.role === 'employee' && ( // <-- Starts here
+       {/* {user?.role === 'gestor' && ( // <-- Starts here
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={handleCreateFolder}>
                     <FolderPlus className="w-4 h-4 mr-2" />
@@ -520,7 +520,7 @@ if (isAuthLoading || isDataLoading) {
                     Enviar Arquivo
                   </Button>
                 </div>
-              )}
+              )} */}
 
               </div>
 

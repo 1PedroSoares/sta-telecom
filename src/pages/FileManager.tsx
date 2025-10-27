@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/Footer'; // Importar o novo rodapé
 import UploadModal from '@/components/UploadModal'; // Importar o novo modal
+import { api } from '@/lib/api';
 
 // --- Tipos de Dados ---
 type FileType = 'pdf' | 'doc' | 'xls' | 'img' | 'zip' | 'other';
@@ -121,6 +122,7 @@ export default function FileManager() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { toast } = useToast();
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
     // (Em um app real, fileSystem seria buscado do backend)
     const [fileSystem, setFileSystem] = useState<FolderNode>(mockData);
@@ -136,11 +138,64 @@ export default function FileManager() {
     const [draggedOverFolder, setDraggedOverFolder] = useState<string | null>(null);
 
     // Redireciona se não for 'employee'
-    useEffect(() => {
-        if (user && user.role !== 'employee') {
+  useEffect(() => {
+        if (user?.role !== 'gestor') { // Verificação se é gestor
             navigate('/dashboard');
+            return;
         }
-    }, [user, navigate]);
+
+        const fetchProjects = async () => {
+            setIsLoadingData(true);
+            try {
+                // 1. Busca os projetos da API
+                // A API retorna { data: [...] }
+                const response = await api.get('/projetos');
+                const projetosDaApi = response.data.data;
+
+                // 2. Transforma os projetos da API no formato FolderNode
+                const projectFolders: FolderNode[] = projetosDaApi.map((proj: any) => ({
+                    id: String(proj.id), // <-- O ID REAL (ex: '1', '2', '3')
+                    name: proj.nome, // <-- O NOME REAL
+                    type: 'folder',
+                    path: `/${String(proj.id)}`, // Define um path (pode ser ajustado)
+                    author: proj.cliente?.nome || 'Gestor',
+                    modifiedAt: proj.criado_em || new Date().toISOString(),
+                    size: 0,
+                    children: [], // (Arquivos podem ser carregados quando clica na pasta)
+                }));
+
+                // 3. Cria a estrutura raiz do fileSystem
+                const rootFolder: FolderNode = {
+                    id: 'root', // O ID da raiz ainda pode ser 'root'
+                    name: 'Projetos STA',
+                    type: 'folder',
+                    path: '/',
+                    author: 'Admin',
+                    modifiedAt: new Date().toISOString(),
+                    size: 0,
+                    children: projectFolders, // <-- Adiciona os projetos reais como filhos
+                };
+
+                // 4. Atualiza o estado
+                setFileSystem(rootFolder);
+                setCurrentFolder(rootFolder);
+                setBreadcrumbPath([rootFolder]);
+
+            } catch (error: any) {
+                console.error("Erro ao buscar projetos:", error);
+                toast({
+                    title: "Erro ao carregar projetos",
+                    description: "Não foi possível buscar os dados do servidor.",
+                    variant: "destructive"
+                });
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+
+        fetchProjects();
+
+    }, [user, navigate, toast]);
 
     // Encontra uma pasta no sistema de arquivos
     const findFolderByPath = (path: string, node: FolderNode = fileSystem): FolderNode | null => {
@@ -220,22 +275,54 @@ export default function FileManager() {
     };
 
     // Ações
-    const handleCreateFolder = () => {
+   const handleCreateFolder = async () => { // Marque como async
+        if (!currentFolder || !user || user.role !== 'gestor') return;
+
         const folderName = prompt("Nome da nova pasta:");
         if (folderName) {
-            // Simulação de criação
-            const newFolder: FolderNode = {
-                id: `new-folder-${Date.now()}`, name: folderName,
-                path: `${currentFolder.path === '/' ? '' : currentFolder.path}/${folderName}`,
-                type: 'folder', author: user?.fullName || 'Usuário',
-                modifiedAt: new Date().toISOString(), size: 0, children: []
-            };
+            
+            // Substitua a simulação por esta chamada à API:
+            try {
+                // (Opcional: mostrar um estado de loading)
 
-            // Atualiza o estado (de forma imutável)
-            // (Esta é uma simulação simples, um backend real faria isso)
-            setCurrentFolder(prev => ({ ...prev, children: [newFolder, ...prev.children] }));
+                // 1. Envia os dados para a API
+                // NOTA: Seu backend espera um 'nome_projeto'
+                const response = await api.post('/projetos', {
+                    nome_projeto: folderName,
+                    descricao: 'Criado pelo Gestor',
+                    // Você pode precisar decidir se associa um cliente_user_id aqui
+                    cliente_user_id: null 
+                });
 
-            toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi criada.` });
+                // 2. Pega o novo projeto retornado pela API
+                // (Assumindo que sua API retorna { data: NovoProjeto })
+                const novoProjetoApi = response.data.data; 
+
+                // 3. Converte a resposta da API para o formato do frontend (FileNode)
+                const newFolder: FolderNode = {
+                    id: novoProjetoApi.id.toString(),
+                    name: novoProjetoApi.nome,
+                    path: `/${novoProjetoApi.id}`, // Ou a lógica de path que preferir
+                    type: 'folder',
+                    author: user?.fullName || 'Usuário',
+                    modifiedAt: novoProjetoApi.criado_em || new Date().toISOString(),
+                    size: 0,
+                    children: []
+                };
+
+                // 4. Atualiza o estado local com os dados reais do backend
+                setCurrentFolder(prev => ({ ...prev, children: [newFolder, ...prev.children] }));
+
+                toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi salva no banco.` });
+
+            } catch (error: any) {
+                console.error("Erro ao criar projeto:", error.response?.data || error.message);
+                toast({ 
+                    title: "Erro ao salvar", 
+                    description: "Não foi possível criar a pasta no servidor.", 
+                    variant: "destructive" 
+                });
+            }
         }
     };
 
@@ -306,7 +393,16 @@ export default function FileManager() {
         setUploading(false);
     };
 
-    if (!user) return <div>Carregando...</div>; // Proteção
+   if (isLoadingData || !user) {
+        return (
+            <div className="min-h-screen bg-muted/20 flex flex-col items-center justify-center">
+                <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">
+                    {isLoadingData ? 'Carregando projetos...' : 'Verificando usuário...'}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -359,14 +455,18 @@ export default function FileManager() {
                                     <FolderPlus className="w-4 h-4 mr-2" />
                                     Nova Pasta
                                 </Button>
-                                <Button onClick={() => setIsUploadModalOpen(true)} disabled={uploading}>
-                                    {uploading ? (
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <UploadCloud className="w-4 h-4 mr-2" />
-                                    )}
-                                    Enviar Arquivo
-                                </Button>
+                              <Button 
+    onClick={() => setIsUploadModalOpen(true)} 
+    disabled={uploading || currentFolder.id === 'root'} // <-- Correção aqui
+    title={currentFolder.id === 'root' ? "Selecione um projeto para enviar arquivos" : "Enviar arquivo para esta pasta"} // <-- Tooltip opcional
+>
+    {uploading ? (
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+    ) : (
+        <UploadCloud className="w-4 h-4 mr-2" />
+    )}
+    Enviar Arquivo
+</Button>
                             </div>
                         </div>
 

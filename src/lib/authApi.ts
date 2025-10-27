@@ -8,7 +8,7 @@ export interface User {
     id: number;
     nome: string; // Ou 'name' dependendo do seu UserResource/AuthController
     email: string;
-    perfil: 'cliente' | 'gestor'; // Ou 'role' dependendo do seu UserResource/AuthController
+    role: 'cliente' | 'gestor'; // Ou 'role' dependendo do seu UserResource/AuthController
     data_criacao?: string; // Opcional, se retornado
     // Remova ou adicione campos conforme retornado pelo seu AuthController
 }

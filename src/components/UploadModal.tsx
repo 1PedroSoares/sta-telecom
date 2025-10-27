@@ -43,7 +43,7 @@ type ApiArquivoResponse = {
         id: number;
         nome: string;
         email: string;
-        perfil: string;
+        role: string;
     };
 };
 
@@ -90,6 +90,11 @@ export default function UploadModal({
     }
 
     const handleUpload = async () => {
+
+        if (projetoId === 'root') {
+             setError('Não é possível enviar arquivos para a pasta raiz. Por favor, entre num projeto específico.');
+             return; // Impede a continuação
+        }
         if (!selectedFile) {
             setError('Por favor, selecione um ficheiro primeiro.');
             return;
