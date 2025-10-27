@@ -186,71 +186,112 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchClientData = async () => {
-      // Não busca se autenticação ainda está carregando ou se não há usuário
-      if (isAuthLoading || !user) {
-         if (!isAuthLoading && !user) setIsDataLoading(false); // Para loading se não logado
-         return;
-      }
-      // Só busca se for cliente (se for employee, o FileManager fará a busca)
-      if (user.role !== 'cliente') {
-          setIsDataLoading(false); // Employee não carrega dados aqui
-          return;
-      }
+    // Não busca se autenticação ainda está carregando ou se não há utilizador
+    if (isAuthLoading || !user) {
+        if (!isAuthLoading && !user) setIsDataLoading(false); // Para loading se não logado
+        return;
+    }
 
-      setIsDataLoading(true); // Inicia loading dos dados
-      try {
-        // Usa a rota /api/meu-projeto para clientes
-        const response = await api.get<{ data: ApiProjeto }>('/meu-projeto');
-        const projetoData = response.data.data; // Acessa os dados aninhados
+    const fetchData = async () => {
+        setIsDataLoading(true);
+        try {
+            let rootFolder: FolderNode | null = null;
 
-        if (projetoData) {
-          // Transforma a resposta da API para o formato do frontend
-          const projectFolder = transformApiProjetoToFolderNode(projetoData);
+            if (user.role === 'gestor') {
+                // --- LÓGICA PARA GESTOR ---
+                const response = await api.get('/projetos'); // Busca todos os projetos
+                const projetosDaApi = response.data.data;
 
-          // Atualiza os estados
-          setFileSystem(projectFolder);
-          setCurrentFolder(projectFolder);
-          setBreadcrumbPath([projectFolder]);
-        } else {
-          // Caso o cliente não tenha projeto ainda
-          toast({ title: "Nenhum projeto encontrado", variant: "destructive" });
-          // Configurar um estado inicial vazio talvez?
-          // Ex: const emptyRoot: FolderNode = { id: 'root', name: 'Meus Arquivos', type: 'folder', path: '/', ... children: [] };
-          // setFileSystem(emptyRoot); setCurrentFolder(emptyRoot); setBreadcrumbPath([emptyRoot]);
+                const projectFolders: FolderNode[] = projetosDaApi.map((proj: ApiProjeto) => ({
+                    id: String(proj.id),
+                    name: proj.nome,
+                    type: 'folder',
+                    path: `/${String(proj.id)}`, // Path baseado no ID
+                    author: proj.cliente?.nome || 'Gestor',
+                    modifiedAt: proj.criado_em || new Date().toISOString(),
+                    size: 0,
+                    // Gestor carrega filhos (arquivos) ao navegar (como no FileManager)
+                    children: [], 
+                }));
+
+                rootFolder = {
+                    id: 'root',
+                    name: 'Todos os Projetos', // Nome da raiz para o gestor
+                    type: 'folder',
+                    path: '/',
+                    author: 'Admin',
+                    modifiedAt: new Date().toISOString(),
+                    size: 0,
+                    children: projectFolders,
+                };
+
+            } else if (user.role === 'cliente') {
+                // --- LÓGICA PARA CLIENTE ---
+                const response = await api.get('/meu-projeto'); // Busca o projeto do cliente
+                const projetoData = response.data.data;
+
+                if (projetoData) {
+                    // Transforma o projeto e seus arquivos (a função já existe)
+                    rootFolder = transformApiProjetoToFolderNode(projetoData);
+                    // Ajusta o nome da raiz para o cliente
+                    rootFolder.name = projetoData.nome || 'Meu Projeto'; 
+                } else {
+                    // Cliente sem projeto: Cria uma raiz vazia
+                     toast({ title: "Nenhum projeto encontrado", variant: "destructive" });
+                     rootFolder = { 
+                         id: 'root', name: 'Meus Arquivos', type: 'folder', path: '/', 
+                         author: user.fullName || 'Cliente', modifiedAt: new Date().toISOString(), 
+                         size: 0, children: [] 
+                     };
+                }
+            }
+
+            // Atualiza os estados se rootFolder foi definido
+            if (rootFolder) {
+                setFileSystem(rootFolder);
+                setCurrentFolder(rootFolder);
+                setBreadcrumbPath([rootFolder]);
+            } else {
+                 // Caso inesperado (ex: perfil desconhecido)
+                 throw new Error("Perfil de utilizador não reconhecido para buscar dados.");
+            }
+
+        } catch (error: any) {
+            console.error("Erro ao buscar dados do dashboard:", error);
+            toast({
+                title: "Erro ao carregar arquivos",
+                description: error.response?.data?.message || error.message || "Tente recarregar a página.",
+                variant: "destructive",
+            });
+            // Define um estado vazio em caso de erro para evitar crash
+             const errorRoot: FolderNode = { id: 'root-error', name: 'Erro ao Carregar', type: 'folder', path: '/', author: '', modifiedAt: '', size: 0, children: [] };
+             setFileSystem(errorRoot);
+             setCurrentFolder(errorRoot);
+             setBreadcrumbPath([errorRoot]);
+        } finally {
+            setIsDataLoading(false);
         }
-      } catch (error: any) {
-        console.error("Erro ao buscar dados do projeto:", error);
-        toast({
-          title: "Erro ao carregar arquivos",
-          description: error.response?.data?.message || error.message || "Tente recarregar a página.",
-          variant: "destructive",
-        });
-        // Poderia definir um estado de erro aqui
-      } finally {
-        setIsDataLoading(false); // Finaliza loading dos dados
-      }
     };
 
-    fetchClientData();
-  // Depende do usuário, status de loading da auth e da função de transformação
-  }, [user, isAuthLoading, transformApiProjetoToFolderNode, toast]);
+    fetchData();
+  // Depende do utilizador, status da auth, e da função de transformação
+  }, [user, isAuthLoading, transformApiProjetoToFolderNode, toast, navigate]);
 
- useEffect(() => {
-      if (user) { // Apenas executa se o user existir
-          // Simula o carregamento dos arquivos do cliente
-          setTimeout(() => {
-            // No futuro, aqui você buscaria os dados do backend
-            setCurrentFolder(mockData);
-            setFileSystem(mockData);
-            setBreadcrumbPath([mockData]);
-            setLoading(false);
-          }, 1000);
-      } else {
-         // Se não há usuário, talvez nem precise carregar, ou redirecionar (melhor feito no App.tsx)
-         setLoading(false); // Para parar o loading se não houver user
-      }
-   }, [user]);
+//  useEffect(() => {
+//       if (user) { // Apenas executa se o user existir
+//           // Simula o carregamento dos arquivos do cliente
+//           setTimeout(() => {
+//             // No futuro, aqui você buscaria os dados do backend
+//             setCurrentFolder(mockData);
+//             setFileSystem(mockData);
+//             setBreadcrumbPath([mockData]);
+//             setLoading(false);
+//           }, 1000);
+//       } else {
+//          // Se não há usuário, talvez nem precise carregar, ou redirecionar (melhor feito no App.tsx)
+//          setLoading(false); // Para parar o loading se não houver user
+//       }
+//    }, [user]);
 
  const handleLogout = async () => {
     // --- CORRECTION HERE ---
