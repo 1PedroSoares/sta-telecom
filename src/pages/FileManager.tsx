@@ -19,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/Footer'; // Importar o novo rodapé
-import { UploadModal } from '@/components/UploadModal'; // Importar o novo modal
+import UploadModal from '@/components/UploadModal'; // Importar o novo modal
 
 // --- Tipos de Dados ---
 type FileType = 'pdf' | 'doc' | 'xls' | 'img' | 'zip' | 'other';

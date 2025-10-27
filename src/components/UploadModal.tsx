@@ -18,7 +18,7 @@ import { Terminal } from 'lucide-react'
 interface UploadModalProps {
     isOpen: boolean
     onClose: () => void
-    projetoId: string | null // O ID do projeto para o qual estamos enviando o arquivo
+   projetoId: string | null // O ID do projeto para o qual estamos enviando o arquivo
 }
 
 export default function UploadModal({
@@ -46,9 +46,9 @@ export default function UploadModal({
             setError('Por favor, selecione um ficheiro primeiro.')
             return
         }
-        if (!projetoId) {
-            setError('Erro: ID do projeto não encontrado.')
-            return
+        if (!projetoId) { // Verifica se projetoId foi recebido
+            setError('Erro: ID do projeto não encontrado.'); // Gera o erro se for null ou undefined
+            return;
         }
 
         setIsLoading(true)
@@ -67,18 +67,12 @@ export default function UploadModal({
             // 6. Envie para a API do Laravel
             // A rota '/api/arquivos' é definida em api.php
             // A lógica está em ArquivoController.php
-            await api.post('/api/arquivos', formData, {
-                headers: {
-                    // Essencial para o Axios enviar arquivos
-                    'Content-Type': 'multipart/form-data',
-                },
-            })
-
-            // Sucesso!
-            alert('Arquivo enviado com sucesso!') // (Idealmente, use um Toast/Sonner)
-            handleClose() // Fecha o modal
-        } catch (err: any) {
-            console.error('Erro no upload:', err)
+          await api.post('/arquivos', formData);
+    // Success logic...
+    alert('Arquivo enviado com sucesso!'); // (Idealmente, use um Toast/Sonner)
+    handleClose(); // Fecha o modal
+} catch (err: any) {
+    console.error('Erro no upload:', err);
             if (err.response && err.response.status === 422) {
                 // Erro de validação do Laravel
                 setError(

@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/Footer';
-import { UploadModal } from '@/components/UploadModal';
+import UploadModal from '@/components/UploadModal';
 
 // --- Tipos de Dados ---
 type FileType = 'pdf' | 'doc' | 'xls' | 'img' | 'zip' | 'other';
@@ -51,24 +51,19 @@ type SortKey = 'name' | 'type' | 'author' | 'modifiedAt' | 'size';
 type SortDirection = 'asc' | 'desc';
 
 // --- Dados Mockados Iniciais ---
+
 const mockData: FolderNode = {
-  id: 'root', name: 'Meus Arquivos', type: 'folder', path: '/', author: 'Admin', modifiedAt: '2023-01-10T10:00:00Z', size: 0,
+  id: '1', // Assuming 'Projetos STA' maps to a project/folder with ID 1
+  name: 'Projetos STA', type: 'folder', path: '/', author: 'Admin', modifiedAt: '2023-01-10T10:00:00Z', size: 0,
   children: [
     {
-      id: 'f1', name: 'OS-2024-001 (Torre)', type: 'folder', path: '/f1', author: 'Gestor 1', modifiedAt: '2024-02-15T09:30:00Z', size: 0, children: [
-        { id: 'f1-1', name: 'Relatórios Técnicos', type: 'folder', path: '/f1/f1-1', author: 'Gestor 1', modifiedAt: '2024-03-20T14:00:00Z', size: 0, children: [] },
-        { id: 'file-1a', name: 'Contrato.pdf', type: 'file', fileType: 'pdf', path: '/f1/file-1a', author: 'Admin', modifiedAt: '2024-02-15T09:35:00Z', size: 1200000 },
-        { id: 'file-1b', name: 'Planilha_Custos.xlsx', type: 'file', fileType: 'xls', path: '/f1/file-1b', author: 'Gestor 1', modifiedAt: '2024-03-01T11:20:00Z', size: 55000 },
+      id: '2', // Assuming 'Cliente A (OS-2024-001)' maps to project ID 2
+      name: 'Cliente A (OS-2024-001)', type: 'folder', path: '/f1', author: 'Gestor 1', modifiedAt: '2024-02-15T09:30:00Z', size: 0, children: [
+         { id: '3', name: 'Relatórios Técnicos', type: 'folder', path: '/f1/f1-1', author: 'Gestor 1', modifiedAt: '2024-03-20T14:00:00Z', size: 0, children: [] },
+        // ... files ...
       ]
     },
-    {
-      id: 'f2', name: 'OS-2024-002 (Fibra)', type: 'folder', path: '/f2', author: 'Admin', modifiedAt: '2024-03-10T08:00:00Z', size: 0, children: [
-        { id: 'file-2a', name: 'Apresentacao.doc', type: 'file', fileType: 'doc', path: '/f2/file-2a', author: 'Gestor 2', modifiedAt: '2024-03-11T16:05:00Z', size: 2300000 },
-        { id: 'file-2b', 'name': 'Logo_Cliente.png', type: 'file', fileType: 'img', path: '/f2/file-2b', author: 'Gestor 2', modifiedAt: '2024-03-11T10:15:00Z', size: 89000 },
-      ]
-    },
-    { id: 'file-root', name: 'Padroes_Seguranca.pdf', type: 'file', fileType: 'pdf', path: '/file-root', author: 'Admin', modifiedAt: '2023-01-20T17:00:00Z', size: 750000 },
-  ],
+],
 };
 
 // --- Funções Auxiliares ---
@@ -121,7 +116,7 @@ const formatDate = (isoString: string) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
 
@@ -133,25 +128,27 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    // Simula o carregamento dos arquivos do cliente
-    setTimeout(() => {
-      // No futuro, aqui você buscaria os dados do backend
-      // e talvez ajustaria o mockData com base no user.id
-      setCurrentFolder(mockData);
-      setFileSystem(mockData);
-      setBreadcrumbPath([mockData]);
-      setLoading(false);
-    }, 1000);
-  }, [user, navigate]);
+ useEffect(() => {
+      if (user) { // Apenas executa se o user existir
+          // Simula o carregamento dos arquivos do cliente
+          setTimeout(() => {
+            // No futuro, aqui você buscaria os dados do backend
+            setCurrentFolder(mockData);
+            setFileSystem(mockData);
+            setBreadcrumbPath([mockData]);
+            setLoading(false);
+          }, 1000);
+      } else {
+         // Se não há usuário, talvez nem precise carregar, ou redirecionar (melhor feito no App.tsx)
+         setLoading(false); // Para parar o loading se não houver user
+      }
+   }, [user]);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/');
+ const handleLogout = async () => {
+    // --- CORRECTION HERE ---
+    await logout(); // Change signOut() to logout()
+    // --- END CORRECTION ---
+    // navigate('/'); // The logout function in AuthContext now handles redirection
   };
 
   // --- Funções do Gerenciador de Arquivos ---
@@ -435,6 +432,7 @@ export default function Dashboard() {
       <UploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+        projetoId={currentFolder?.id ?? null}
         currentPath={currentFolder?.path || '/'}
         onUploadComplete={handleUploadComplete}
       />

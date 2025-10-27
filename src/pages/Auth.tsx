@@ -11,29 +11,52 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User } from 'lucide-react';
 
 export default function AuthPage() {
-  const { login } = useAuth();
+  const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+
+const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    console.log('Tentando login com:', { email, password });
     try {
-      await login(email, password);
-      // O AuthContext já cuidou de definir o usuário,
-      // o <App /> (ou router) vai redirecionar automaticamente.
-    } catch (err) {
-      setError('Credenciais inválidas. Tente novamente.');
-      console.error(err);
+      // --- CORREÇÃO AQUI ---
+      // Passe um objeto contendo email e password
+      await login({ email, password });
+      // --- FIM DA CORREÇÃO ---
+
+      toast({
+        title: 'Login realizado com sucesso!',
+        description: 'Redirecionando...',
+      });
+    } catch (err: any) {
+      // ... (código de tratamento de erro) ...
+       console.error("Login failed in AuthPage:", err);
+       let errorMessage = 'Credenciais inválidas. Tente novamente.';
+       if (err.response && err.response.status === 422 && err.response.data.errors) {
+          const errors = err.response.data.errors;
+          errorMessage = Object.values(errors).flat().join(' ');
+       } else if (err.message) {
+          errorMessage = err.message;
+       }
+       setError(errorMessage);
+       toast({
+         title: 'Erro no login',
+         description: errorMessage,
+         variant: 'destructive',
+       });
     }
   };
 
-  useEffect(() => {
-    if (User) {
-      navigate('/dashboard');
-    }
-  }, [User, navigate]);
+useEffect(() => {
+  if (User) { // <--- Problem: 'User' is not defined here
+    navigate('/dashboard'); // This is line 36
+  }
+}, [User, navigate]); // <-- Problem: 'User' is not defined here
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -86,16 +109,17 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+           <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="seu@email.com"
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                  value={email} // <-- CORRIGIDO
+                  onChange={(e) => setEmail(e.target.value)} // <-- CORRIGIDO
                   required
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -104,13 +128,14 @@ export default function AuthPage() {
                   id="password"
                   type="password"
                   placeholder="Sua senha"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  value={password} // <-- CORRIGIDO
+                  onChange={(e) => setPassword(e.target.value)} // <-- CORRIGIDO
                   required
+                  disabled={isLoading}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar'}
+             <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
           </CardContent>
