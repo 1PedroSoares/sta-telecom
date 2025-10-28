@@ -153,9 +153,9 @@ export default function Dashboard() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   // --- Estados do Gerenciador de Arquivos ---
-  const [fileSystem, setFileSystem] = useState<FolderNode>(mockData);
-  const [currentFolder, setCurrentFolder] = useState<FolderNode>(mockData);
-  const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([mockData]);
+ const [fileSystem, setFileSystem] = useState<FolderNode | null>(null); // Inicializa como null
+    const [currentFolder, setCurrentFolder] = useState<FolderNode | null>(null); // Inicializa como null
+    const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);

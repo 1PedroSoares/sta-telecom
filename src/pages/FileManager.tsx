@@ -144,9 +144,9 @@ export default function FileManager() {
     const [isLoadingData, setIsLoadingData] = useState(true);
 
     // (Em um app real, fileSystem seria buscado do backend)
-    const [fileSystem, setFileSystem] = useState<FolderNode>(mockData);
-    const [currentFolder, setCurrentFolder] = useState<FolderNode>(mockData);
-    const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([mockData]);
+ const [fileSystem, setFileSystem] = useState<FolderNode | null>(null); // Initialize as null
+const [currentFolder, setCurrentFolder] = useState<FolderNode | null>(null); // Initialize as null
+const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]); // Initialize as empty array
 
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
