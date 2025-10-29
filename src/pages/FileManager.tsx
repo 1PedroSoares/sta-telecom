@@ -207,27 +207,28 @@ useEffect(() => {
             try {
                 let rootFolder: FolderNode | null = null;
 
-                if (user.role === 'gestor') {
-                    // --- SUA LÓGICA EXISTENTE PARA GESTOR ---
-                    console.log("FileManager: Fetching data for GESTOR");
+              if (user.role === 'gestor') {
+                    console.log("FileManager: Fetching data for GESTOR (Root Level)");
+                    // A API /projetos agora já retorna apenas o nível raiz devido à alteração no controller
                     const response = await api.get('/projetos');
-                    const projetosDaApi = response.data.data;
+                    const projetosRaizDaApi = response.data.data; // Assumindo wrapping
 
-                    const projectFolders: FolderNode[] = projetosDaApi.map((proj: ApiProjeto) => ({ // Certifique-se que ApiProjeto está definido
+                    const rootProjectFolders: FolderNode[] = projetosRaizDaApi.map((proj: ApiProjeto) => ({
                         id: String(proj.id),
                         name: proj.nome,
                         type: 'folder',
-                        path: `/${String(proj.id)}`,
+                        path: `/${String(proj.id)}`, // Path de nível 1
                         author: proj.cliente?.nome || 'Gestor',
                         modifiedAt: proj.criado_em || new Date().toISOString(),
                         size: 0,
-                        children: [], // Filhos carregados ao navegar
+                        // Importante: Inicializa children como vazio. Serão carregados ao navegar.
+                        children: [],
                     }));
 
                     rootFolder = {
                         id: 'root', name: 'Todos os Projetos', type: 'folder', path: '/',
                         author: 'Admin', modifiedAt: new Date().toISOString(), size: 0,
-                        children: projectFolders,
+                        children: rootProjectFolders, // Apenas pastas raiz aqui
                     };
 
                 } else if (user.role === 'cliente') {
@@ -308,94 +309,102 @@ useEffect(() => {
   
 
     // Navega para uma pasta
-const navigateToFolder = useCallback(async (path: string) => { // <-- Marque como async
-        if (!fileSystem) return;
+// Navega para uma pasta, buscando seu conteúdo da API (exceto para a raiz)
+    const navigateToFolder = useCallback(async (path: string) => {
+        setIsLoadingData(true); // Mostra loading imediatamente
 
-        // Encontra a pasta alvo na estrutura local *primeiro*
-        // para obter o ID correto antes de buscar dados completos
-        const targetFolderLocal = findFolderByPath(path);
-        
-        if (!targetFolderLocal) {
-            console.warn(`Tentativa de navegar para pasta não encontrada localmente: ${path}`);
-            setCurrentFolder(fileSystem); // Volta para a raiz como fallback
-            setBreadcrumbPath([fileSystem]);
+        // --- LÓGICA PARA RAIZ ---
+        if (path === '/') {
+            if (fileSystem) {
+                setCurrentFolder(fileSystem);
+                setBreadcrumbPath([fileSystem]); // Só a raiz no breadcrumb
+            } else {
+                console.error("fileSystem não carregado ao navegar para a raiz.");
+            }
+            setIsLoadingData(false); // Esconde loading
             return;
         }
 
-        // --- LÓGICA DE BUSCA DE DADOS ---
-        let folderDataToShow = targetFolderLocal; // Usa a pasta local por padrão
+        // --- LÓGICA PARA PASTAS NÃO RAIZ ---
+        try {
+            // Extrai o ID da pasta do final do path
+            const pathParts = path.split('/').filter(Boolean);
+            const targetFolderId = pathParts[pathParts.length - 1];
 
-        // Se NÃO for a pasta raiz, busca os detalhes (incluindo arquivos) da API
-        if (targetFolderLocal.id !== 'root') {
-            setIsLoadingData(true); // <-- Mostra loading ao entrar na pasta
-            try {
-                // Usa o ID numérico do projeto para buscar na API
-                const response = await api.get(`/projetos/${targetFolderLocal.id}`);
-                const projetoComArquivos = response.data.data; // A API retorna { data: Projeto }
-
-                // Transforma a resposta da API (incluindo arquivos) para FolderNode
-                folderDataToShow = {
-                    id: String(projetoComArquivos.id),
-                    name: projetoComArquivos.nome,
-                    type: 'folder',
-                    path: targetFolderLocal.path, // Mantém o path local consistente
-                    author: projetoComArquivos.cliente?.nome || 'Gestor',
-                    modifiedAt: projetoComArquivos.criado_em || new Date().toISOString(),
-                    size: 0,
-                    // Transforma os arquivos da API em FileNode
-                    children: projetoComArquivos.arquivos.map((apiArquivo: ApiArquivo) => ({
-                        id: String(apiArquivo.id),
-                        name: apiArquivo.nome,
-                        type: 'file',
-                        fileType: getFileTypeFromMime(apiArquivo.mime_type),
-                        path: `${targetFolderLocal.path}/${apiArquivo.nome}`, // Constrói path do arquivo
-                        author: apiArquivo.enviado_por?.nome || 'Desconhecido',
-                        modifiedAt: apiArquivo.data_upload_iso,
-                        size: apiArquivo.tamanho_bytes,
-                    })),
-                };
-
-            } catch (error: any) {
-                console.error(`Erro ao buscar detalhes do projeto ${targetFolderLocal.id}:`, error);
-                toast({
-                    title: "Erro ao carregar pasta",
-                    description: "Não foi possível buscar os arquivos deste projeto.",
-                    variant: "destructive"
-                });
-                // Poderia voltar para a raiz ou manter a pasta local sem arquivos
-                setCurrentFolder(fileSystem); 
-                setBreadcrumbPath([fileSystem]);
-                setIsLoadingData(false);
-                return; // Para a execução
-            } finally {
-                setIsLoadingData(false); // <-- Esconde o loading
+            if (!targetFolderId || targetFolderId === 'root') {
+                 throw new Error(`ID inválido extraído do path: ${path}`);
             }
+
+            console.log(`Navegando para path ${path}, buscando ID ${targetFolderId}`);
+            const response = await api.get(`/projetos/${targetFolderId}`);
+            const projetoApi = response.data.data; // Assumindo wrapping
+
+            // Mapeia subpastas e ficheiros (como antes)
+            const subFolders: FolderNode[] = (projetoApi.children || []).map((childProj: ApiProjeto): FolderNode => ({ // Tipagem explícita
+                id: String(childProj.id),
+                name: childProj.nome,
+                type: 'folder',
+                path: `${path}/${String(childProj.id)}`, // Path da subpasta
+                author: childProj.cliente?.nome || 'Gestor',
+                modifiedAt: childProj.criado_em || new Date().toISOString(),
+                size: 0,
+                children: [],
+            }));
+
+            const files: FileNode[] = (projetoApi.arquivos || []).map((apiArquivo: ApiArquivo): FileNode => ({ // Tipagem explícita
+                id: String(apiArquivo.id),
+                name: apiArquivo.nome,
+                type: 'file',
+                fileType: getFileTypeFromMime(apiArquivo.mime_type),
+                path: `${path}/${apiArquivo.nome}`, // Path do ficheiro
+                author: apiArquivo.enviado_por?.nome || 'Desconhecido',
+                modifiedAt: apiArquivo.data_upload_iso,
+                size: apiArquivo.tamanho_bytes,
+            }));
+
+            // Monta o FolderNode para a pasta atual
+            const folderDataToShow: FolderNode = {
+                id: String(projetoApi.id),
+                name: projetoApi.nome,
+                type: 'folder',
+                path: path, // Usa o path da navegação
+                author: projetoApi.cliente?.nome || 'Gestor',
+                modifiedAt: projetoApi.criado_em || new Date().toISOString(),
+                size: 0,
+                children: [...subFolders, ...files],
+            };
+
+            // Atualiza a pasta atual
+            setCurrentFolder(folderDataToShow);
+
+            // --- LÓGICA SIMPLIFICADA PARA BREADCRUMBS ---
+            // Adiciona a pasta atual ao breadcrumb da pasta anterior
+            setBreadcrumbPath(prevBreadcrumbs => {
+                 // Remove possíveis nós futuros se o utilizador voltou para trás
+                 const currentIndex = prevBreadcrumbs.findIndex(folder => folder.path === path);
+                 if (currentIndex !== -1) {
+                     return prevBreadcrumbs.slice(0, currentIndex + 1);
+                 }
+                 // Adiciona o nó atual aos breadcrumbs anteriores
+                 // Garante que não adiciona duplicado se já existir (pouco provável)
+                 if (prevBreadcrumbs[prevBreadcrumbs.length-1]?.id !== folderDataToShow.id) {
+                    return [...prevBreadcrumbs, folderDataToShow];
+                 }
+                 return prevBreadcrumbs;
+
+            });
+            // --- FIM BREADCRUMBS ---
+
+        } catch (error: any) {
+            console.error(`Erro ao navegar para ${path}:`, error);
+            toast({ title: "Erro ao carregar pasta", description: "Não foi possível buscar os dados.", variant: "destructive" });
+            // Fallback: talvez voltar para a pasta anterior ou raiz?
+            // Por agora, apenas termina o loading
+        } finally {
+            setIsLoadingData(false); // Esconde loading
         }
-        setCurrentFolder(folderDataToShow);
 
-
-    
-
-        // Constrói breadcrumbs (lógica existente adaptada)
-        const pathParts = path === '/' ? [] : path.split('/').filter(Boolean);
-        const newBreadcrumbs = [fileSystem]; // Começa sempre com a raiz do fileSystem
-        let currentPath = '/';
-
-        // Reconstrói a partir da raiz local para garantir consistência
-        for (const part of pathParts) {
-            const nextPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
-            const breadcrumbNode = findFolderByPath(nextPath, fileSystem); // Busca na estrutura *local*
-            if (breadcrumbNode && breadcrumbNode.path !== '/') {
-                 // Usa o NOME da pasta local encontrada para o breadcrumb
-                newBreadcrumbs.push({ ...breadcrumbNode, name: breadcrumbNode.name }); 
-                currentPath = breadcrumbNode.path; 
-            } else if (path === '/') {
-                break; 
-            }
-        }
-       setBreadcrumbPath(newBreadcrumbs);
-
-    }, [fileSystem, findFolderByPath, toast]);
+    }, [fileSystem, toast, setIsLoadingData]); // Dependências simplificadas
 
     // Lógica de filtragem e ordenação
     const filteredAndSortedItems = useMemo(() => {
@@ -449,39 +458,43 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
             
             // Substitua a simulação por esta chamada à API:
            try {
+               const parentId = currentFolder.id === 'root' ? null : currentFolder.id;
+
                 const response = await api.post('/projetos', {
                     nome_projeto: folderName,
-                    descricao: 'Criado pelo Gestor',
-                    cliente_user_id: null
+                    descricao: `Subpasta de ${currentFolder.name}`, // Descrição opcional
+                    cliente_user_id: null, // Subpastas geralmente não têm cliente direto
+                    parent_id: parentId   // Envia o parent_id correto
                 });
-                const novoProjetoApi = response.data.data;
+              const novoProjetoApi = response.data.data; // Assumindo wrapping ativo
 
-                // Converte a resposta da API para o formato do frontend (FileNode)
+                 // Converte a resposta da API para o formato do frontend (FileNode)
                 const newFolder: FolderNode = {
                     id: String(novoProjetoApi.id),
                     name: novoProjetoApi.nome,
-                    path: `/${String(novoProjetoApi.id)}`, // Path consistente
+                    // O path agora precisa refletir a hierarquia
+                    // Uma lógica mais robusta seria buscar o path completo do pai, mas por agora:
+                    path: `${currentFolder.path === '/' ? '' : currentFolder.path}/${String(novoProjetoApi.id)}`, // Pode precisar de ajuste
                     type: 'folder',
-                    author: user?.nome || 'Utilizador', // Usar user.nome
+                    author: user?.nome || 'Utilizador',
                     modifiedAt: novoProjetoApi.criado_em || new Date().toISOString(),
                     size: 0,
-                    children: []
+                    children: [] // Nova pasta começa vazia
                 };
 
-                // --- ATUALIZAÇÃO DO ESTADO ---
-                // 1. Atualiza a pasta atual (raiz) para incluir a nova pasta
+                // Atualiza APENAS a pasta atual para incluir a nova subpasta
                 setCurrentFolder(prev => {
-                    if (!prev || prev.id !== 'root') return prev; // Só atualiza se estiver na raiz
-                    // Adiciona a nova pasta no início da lista para feedback visual
-                    return { ...prev, children: [newFolder, ...prev.children] }; 
+                    if (!prev) return null;
+                    // Adiciona a nova pasta no início da lista de children da pasta atual
+                    return { ...prev, children: [newFolder, ...prev.children] };
                 });
 
                 // 2. Atualiza o fileSystem principal para incluir a nova pasta
-                setFileSystem(prev => {
-                    if (!prev || prev.id !== 'root') return prev; // Garante que é a raiz
-                     // Adiciona a nova pasta no início da lista
-                    return { ...prev, children: [newFolder, ...prev.children] };
-                });
+                // setFileSystem(prev => {
+                //     if (!prev || prev.id !== 'root') return prev; // Garante que é a raiz
+                //      // Adiciona a nova pasta no início da lista
+                //     return { ...prev, children: [newFolder, ...prev.children] };
+                // });
                 // --- FIM DA ATUALIZAÇÃO ---
 
 
