@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
     FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-    ArrowUp, ArrowDown, Loader2, LogOut // Adicionado Loader2
+    ArrowUp, ArrowDown, Loader2, LogOut, Download // Adicionado Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,15 @@ import {
     Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList,
     BreadcrumbPage, BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription, // Opcional
+    DialogFooter,      // Opcional
+    DialogClose        // Opcional
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -152,6 +161,11 @@ export default function FileManager() {
    const { user, logout, isLoading } = useAuth();
     const { toast } = useToast();
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [viewingFile, setViewingFile] = useState<FileNode | null>(null);
+    const [fileBlobUrl, setFileBlobUrl] = useState<string | null>(null); // Armazena o URL local (Blob)
+    const [isFetchingFile, setIsFetchingFile] = useState(false);
+    const [fileHtmlContent, setFileHtmlContent] = useState<string | null>(null);
 
     // (Em um app real, fileSystem seria buscado do backend)
  const [fileSystem, setFileSystem] = useState<FolderNode | null>(null); // Initialize as null
@@ -447,6 +461,160 @@ useEffect(() => {
     const getSortIcon = (key: SortKey) => {
         if (sortConfig.key !== key) return null;
         return sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />;
+    };
+
+
+
+    const handleDownload = async (fileNode: FileNode) => {
+        // Opcional: Mostrar um indicador de loading específico para download
+        toast({ title: "Iniciando download...", description: fileNode.name });
+
+        try {
+            // 1. Usa o 'api' (axios) que envia o token
+            const response = await api.get(
+                `/arquivos/${fileNode.id}/download`, // Usa a rota de download
+                { responseType: 'blob' } // Pede os dados como ficheiro binário
+            );
+
+            // 2. Cria um URL local temporário para o ficheiro binário (Blob)
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+
+            // 3. Cria um link temporário na memória
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileNode.name); // Define o nome do ficheiro para download
+
+            // 4. Simula o clique no link para iniciar o download
+            document.body.appendChild(link); // Precisa estar no DOM para o clique funcionar em alguns navegadores
+            link.click();
+
+            // 5. Limpa (remove o link e revoga o URL do Blob)
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error: any) {
+            console.error("Erro ao fazer download do ficheiro:", error.response?.data || error.message);
+            toast({
+                title: "Erro no Download",
+                description: `Não foi possível baixar o ficheiro ${fileNode.name}. (${error.message})`,
+                variant: "destructive"
+            });
+        } finally {
+            // Opcional: Esconder o indicador de loading
+        }
+    };
+
+
+   const handleViewFile = async (fileNode: FileNode) => {
+    // Tipos que podemos tentar pré-visualizar
+    const supportedTypes: FileType[] = ['pdf', 'img', 'doc', 'xls']; // Adicione 'doc', 'xls' se for implementar
+    if (!supportedTypes.includes(fileNode.fileType)) {
+             toast({
+                 title: "Pré-visualização não suportada",
+                 description: `A pré-visualização para ficheiros do tipo "${getNodeType(fileNode)}" não está disponível.`,
+                 variant: "default"
+             });
+             return;
+        }
+
+        setViewingFile(fileNode);
+        setIsViewModalOpen(true);
+        setIsFetchingFile(true); // <-- Inicia o loading
+        setFileBlobUrl(null);    // <-- Limpa o URL antigo
+        setFileHtmlContent(null);
+
+      try {
+            // --- AJUSTE NA LÓGICA DE BUSCA ---
+            let response;
+            if (fileNode.fileType === 'doc' || fileNode.fileType === 'xls') {
+                // Para Office, busca como TEXTO (HTML)
+                response = await api.get(
+                    `/arquivos/${fileNode.id}/view`,
+                    { responseType: 'text' } // <-- Pede como texto
+                );
+                setFileHtmlContent(response.data); // <-- Guarda o HTML
+                setFileBlobUrl(null); // Garante que blob url está nulo
+            } else {
+                // Para PDF e Imagem, busca como BLOB (como antes)
+                response = await api.get(
+                    `/arquivos/${fileNode.id}/view`,
+                    { responseType: 'blob' }
+                );
+                const url = URL.createObjectURL(response.data);
+                setFileBlobUrl(url); // <-- Guarda o Blob URL
+                setFileHtmlContent(null); // Garante que html está nulo
+            }
+        } catch (error: any) {
+            console.error("Erro ao buscar ficheiro para visualização:", error.response?.data || error.message);
+            toast({ title: "Erro ao carregar ficheiro", description: error.message, variant: "destructive" });
+            setIsViewModalOpen(false); // Fecha o modal se falhar
+        } finally {
+            setIsFetchingFile(false); // <-- Termina o loading
+        }
+    };
+
+const renderFilePreview = (file: FileNode) => {
+        if (isFetchingFile) { // Simplificado: Mostra loading se estiver a buscar
+            return (
+                <div className="flex justify-center items-center h-full">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="ml-2 text-muted-foreground">A carregar ficheiro...</p>
+                </div>
+            );
+        }
+
+        // Se terminou de buscar mas não há conteúdo (erro?)
+        if (!fileBlobUrl && !fileHtmlContent) {
+             return (
+                 <div className="text-center p-10 text-destructive-foreground bg-destructive rounded">
+                     Erro ao carregar pré-visualização. Tente baixar o ficheiro.
+                 </div>
+             );
+        }
+
+
+        switch (file.fileType) {
+            case 'img':
+                // Imagem ainda usa fileBlobUrl
+                return (
+                    <img src={fileBlobUrl!} alt={`Pré-visualização de ${file.name}`} className="max-w-full h-auto mx-auto"/>
+                );
+            case 'pdf':
+                 // PDF ainda usa fileBlobUrl
+                return (
+                    <iframe src={fileBlobUrl!} title={`Visualizador para ${file.name}`} className="w-full h-full border-0"/>
+                );
+
+            // --- MUDANÇA AQUI ---
+            case 'doc':
+            case 'xls':
+                // Office usa fileHtmlContent com srcDoc
+                return (
+                    <iframe
+                        srcDoc={fileHtmlContent!} // <-- Usa srcDoc com o conteúdo HTML
+                        title={`Visualizador para ${file.name}`}
+                        className="w-full h-full border-0 bg-white"
+                        sandbox="allow-scripts allow-same-origin" // Mantenha o sandbox
+                    />
+                );
+
+            default:
+                // Para 'zip', 'other', etc.
+                 return (
+                     <div className="text-center p-10">
+                         <p className="text-lg font-medium mb-4">Pré-visualização não suportada</p>
+                         <p className="text-muted-foreground mb-6">
+                             Não é possível pré-visualizar este tipo de ficheiro ({getNodeType(file)}).
+                         </p>
+                         <Button asChild>
+                              <a href={`${api.defaults.baseURL}/arquivos/${file.id}/download`} target="_blank" rel="noopener noreferrer">
+                                 <Download className="w-4 h-4 mr-2" />
+                                 Baixar {file.name}
+                             </a>
+                         </Button>
+                     </div>
+                 );
+        }
     };
 
     // Ações
@@ -826,8 +994,21 @@ useEffect(() => {
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
                                                         {getNodeIcon(node)}
-                                                        <span className="font-medium truncate" title={node.name}>{node.name}</span>
-                                                    </div>
+{node.type === 'file' ? (
+                // --- FICHEIRO CLICÁVEL ---
+                <span
+                    className="font-medium truncate cursor-pointer hover:underline text-primary"
+                    title={`Ver ${node.name}`}
+                    onClick={() => handleViewFile(node)} // Chama a função de visualização
+                >
+                    {node.name}
+                </span>
+            ) : (
+                // --- PASTA NÃO CLICÁVEL (usa duplo clique na linha) ---
+                <span className="font-medium truncate" title={node.name}>
+                    {node.name}
+                </span>
+            )}                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground">{getNodeType(node)}</TableCell>
                                                 <TableCell className="text-muted-foreground">{node.author}</TableCell>
@@ -836,7 +1017,19 @@ useEffect(() => {
                                                     {node.type === 'file' ? formatBytes(node.size) : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    {user?.role === 'gestor' && ( // <-- Adicione esta condição
+
+                                               {node.type === 'file' && (
+              <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 mr-1"
+                  onClick={(e) => { e.stopPropagation(); handleDownload(node); }} // <-- Use onClick
+                  title={`Baixar ${node.name}`}
+                  // Remova asChild e <a> se estava a usar
+              >
+                   <Download className="w-4 h-4" />
+              </Button>
+          )}                                     {user?.role === 'gestor' && ( // <-- Adicione esta condição
                                                         <div className="flex justify-end gap-1">
                                                             <Button
                                                                 variant="ghost"
@@ -878,6 +1071,49 @@ useEffect(() => {
                 currentPath={currentFolder?.path || '/'}
                 onUploadComplete={handleUploadComplete}
             />
+
+        {viewingFile && (
+                <Dialog
+                    open={isViewModalOpen}
+                    onOpenChange={(open) => {
+                        setIsViewModalOpen(open);
+                        if (!open) { // Se estiver a fechar
+                            if (fileBlobUrl) {
+                                URL.revokeObjectURL(fileBlobUrl);
+                                setFileBlobUrl(null);
+                            }
+                            setFileHtmlContent(null); // <-- Limpa o conteúdo HTML
+                        }
+                    }}
+                >
+                    <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0"> {/* Ajuste tamanho e padding */}
+                        <DialogHeader className="p-4 border-b">
+                            <DialogTitle className="truncate">{viewingFile.name}</DialogTitle>
+                            <DialogDescription>
+                                Tipo: {getNodeType(viewingFile)} | Tamanho: {formatBytes(viewingFile.size)}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-auto p-4"> {/* Área de conteúdo com scroll */}
+                            {renderFilePreview(viewingFile)} {/* Função para renderizar o preview */}
+                        </div>
+                         <DialogFooter className="p-4 border-t">
+                            {/* Botão de Download dentro do Modal */}
+                            <Button
+                                 variant="outline"
+                                 onClick={() => viewingFile && handleDownload(viewingFile)} // <-- Use onClick
+                                 // Remova asChild e <a>
+                                 disabled={!viewingFile} // Segurança extra
+                             >
+                                 <Download className="w-4 h-4 mr-2" />
+                                 Baixar
+                             </Button>
+                             <DialogClose asChild>
+                                <Button variant="secondary">Fechar</Button>
+                             </DialogClose>
+                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 }
