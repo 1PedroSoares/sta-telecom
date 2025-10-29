@@ -43,61 +43,62 @@ const AuthRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
         return <div>Verificando autenticação...</div>;
     }
 
-    if (isAuthenticated) {
-        // Redireciona para /dashboard se já estiver autenticado
-        return <Navigate to="/dashboard" replace />;
+   if (isAuthenticated) {
+        // Redireciona para /file-manager se já estiver autenticado
+        return <Navigate to="/file-manager" replace />;
     }
 
     // Renderiza o componente de autenticação se não estiver logado
     return children;
 };
-
+export { App };
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    {/* AuthProvider deve vir por fora para que useAuth funcione nos wrappers */}
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
+    <BrowserRouter> {/* <-- Move BrowserRouter OUTSIDE AuthProvider */}
+      <AuthProvider> {/* <-- AuthProvider is now INSIDE BrowserRouter */}
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+            {/* Routes are now direct children of AuthProvider */}
+            <Routes>
+              <Route path="/" element={<Index />} />
 
-            {/* Rota de Autenticação: Só acessível se NÃO estiver logado */}
-            <Route
-              path="/auth"
-              element={
-                <AuthRoute>
-                  <Auth />
-                </AuthRoute>
-              }
-            />
+              {/* Rota de Autenticação: Só acessível se NÃO estiver logado */}
+              <Route
+                path="/auth"
+                element={
+                  <AuthRoute>
+                    <Auth />
+                  </AuthRoute>
+                }
+              />
 
-            {/* Rotas Protegidas: Só acessíveis se ESTIVER logado */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/file-manager"
-              element={
-                <ProtectedRoute>
-                  <FileManager />
-                </ProtectedRoute>
-              }
-            />
+              {/* Rotas Protegidas: Só acessíveis se ESTIVER logado */}
+              {/* Rota /dashboard removida ou comentada, pois /file-manager é o destino principal */}
+              {/*
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              */}
+              <Route
+                path="/file-manager"
+                element={
+                  <ProtectedRoute>
+                    <FileManager />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Rota Catch-all para páginas não encontradas */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+              {/* Rota Catch-all para páginas não encontradas */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+        </TooltipProvider>
+      </AuthProvider>
+    </BrowserRouter> {/* <-- Close BrowserRouter here */}
   </QueryClientProvider>
 );
-
-export default App;

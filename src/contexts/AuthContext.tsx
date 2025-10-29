@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { api } from '@/lib/api'; // Sua instância Axios
 import { getUserApi, loginApi, logoutApi, User, LoginResponse } from '@/lib/authApi'; // Importa as funções da API
-
+import { useNavigate } from 'react-router-dom';
 // --- INTERFACES ---
 // Usaremos a interface User exportada de authApi.ts
 export type AuthUser = User;
@@ -20,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- PROVEDOR DE AUTENTICAÇÃO ---
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true); // Começa como true
@@ -96,7 +97,8 @@ const login = async (credentials: any): Promise<void> => {
       if (response.token && response.user) {
          applyAuth(response.token, response.user);
          // ---> ADICIONE ESTA LINHA <---
-         setIsLoading(false); // Define loading como false após sucesso
+         setIsLoading(false);
+         navigate('/file-manager'); // Define loading como false após sucesso
          // ---> FIM DA ADIÇÃO <---
       } else {
          setIsLoading(false); // Também defina como false se a resposta for inválida

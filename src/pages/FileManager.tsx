@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
     FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-    ArrowUp, ArrowDown, Loader2 // Adicionado Loader2
+    ArrowUp, ArrowDown, Loader2, LogOut // Adicionado Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,16 @@ type ApiArquivo = {
   tamanho_bytes: number;
   data_upload_iso: string;
   enviado_por?: { nome: string; }; // Simplificado
+};
+
+
+type ApiProjeto = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  criado_em: string;
+  cliente?: { nome: string; };
+  arquivos: ApiArquivo[]; // Usa o tipo ApiArquivo que já definimos
 };
 
 type NodeBase = {
@@ -139,7 +149,7 @@ const formatDate = (isoString: string) => {
 // --- Componente Principal ---
 export default function FileManager() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+   const { user, logout, isLoading } = useAuth();
     const { toast } = useToast();
     const [isLoadingData, setIsLoadingData] = useState(true);
 
@@ -151,70 +161,136 @@ const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]); // Initi
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-
+    
     // --- NOVOS ESTADOS PARA DRAG & DROP ---
     const [uploading, setUploading] = useState(false);
     const [draggedOverFolder, setDraggedOverFolder] = useState<string | null>(null);
 
+
+      const transformApiProjetoToFolderNode = (apiProjeto: ApiProjeto): FolderNode => {
+    const projectFolder: FolderNode = {
+      id: String(apiProjeto.id),
+      name: apiProjeto.nome,
+      type: 'folder',
+      path: `/${String(apiProjeto.id)}`, // Ajuste o path conforme necessário (talvez só '/' para o cliente?)
+      author: apiProjeto.cliente?.nome || 'Cliente',
+      modifiedAt: apiProjeto.criado_em || new Date().toISOString(),
+      size: 0,
+      children: apiProjeto.arquivos.map(apiArquivo => ({
+        id: String(apiArquivo.id),
+        name: apiArquivo.nome,
+        type: 'file',
+        fileType: getFileTypeFromMime(apiArquivo.mime_type),
+        path: `/${String(apiProjeto.id)}/${apiArquivo.nome}`, // Path do arquivo dentro do projeto
+        author: apiArquivo.enviado_por?.nome || 'Desconhecido',
+        modifiedAt: apiArquivo.data_upload_iso,
+        size: apiArquivo.tamanho_bytes,
+      })),
+    };
+    return projectFolder;
+  };
+
+    
     // Redireciona se não for 'employee'
-  useEffect(() => {
-        if (user?.role !== 'gestor') { // Verificação se é gestor
-            navigate('/dashboard');
+useEffect(() => {
+        // NÃO chame useAuth() aqui
+
+        // Use 'isLoading' obtido do useAuth() no topo do componente
+        if (isLoading || !user) {
+            if (!isLoading && !user) setIsLoadingData(false); // Make sure setIsLoadingData is defined
             return;
         }
 
+        // ----- FUNÇÃO INTERNA PARA BUSCAR DADOS -----
         const fetchProjects = async () => {
             setIsLoadingData(true);
             try {
-                // 1. Busca os projetos da API
-                // A API retorna { data: [...] }
-                const response = await api.get('/projetos');
-                const projetosDaApi = response.data.data;
+                let rootFolder: FolderNode | null = null;
 
-                // 2. Transforma os projetos da API no formato FolderNode
-                const projectFolders: FolderNode[] = projetosDaApi.map((proj: any) => ({
-                    id: String(proj.id), // <-- O ID REAL (ex: '1', '2', '3')
-                    name: proj.nome, // <-- O NOME REAL
-                    type: 'folder',
-                    path: `/${String(proj.id)}`, // Define um path (pode ser ajustado)
-                    author: proj.cliente?.nome || 'Gestor',
-                    modifiedAt: proj.criado_em || new Date().toISOString(),
-                    size: 0,
-                    children: [], // (Arquivos podem ser carregados quando clica na pasta)
-                }));
+                if (user.role === 'gestor') {
+                    // --- SUA LÓGICA EXISTENTE PARA GESTOR ---
+                    console.log("FileManager: Fetching data for GESTOR");
+                    const response = await api.get('/projetos');
+                    const projetosDaApi = response.data.data;
 
-                // 3. Cria a estrutura raiz do fileSystem
-                const rootFolder: FolderNode = {
-                    id: 'root', // O ID da raiz ainda pode ser 'root'
-                    name: 'Projetos STA',
-                    type: 'folder',
-                    path: '/',
-                    author: 'Admin',
-                    modifiedAt: new Date().toISOString(),
-                    size: 0,
-                    children: projectFolders, // <-- Adiciona os projetos reais como filhos
-                };
+                    const projectFolders: FolderNode[] = projetosDaApi.map((proj: ApiProjeto) => ({ // Certifique-se que ApiProjeto está definido
+                        id: String(proj.id),
+                        name: proj.nome,
+                        type: 'folder',
+                        path: `/${String(proj.id)}`,
+                        author: proj.cliente?.nome || 'Gestor',
+                        modifiedAt: proj.criado_em || new Date().toISOString(),
+                        size: 0,
+                        children: [], // Filhos carregados ao navegar
+                    }));
 
-                // 4. Atualiza o estado
-                setFileSystem(rootFolder);
-                setCurrentFolder(rootFolder);
-                setBreadcrumbPath([rootFolder]);
+                    rootFolder = {
+                        id: 'root', name: 'Todos os Projetos', type: 'folder', path: '/',
+                        author: 'Admin', modifiedAt: new Date().toISOString(), size: 0,
+                        children: projectFolders,
+                    };
+
+                } else if (user.role === 'cliente') {
+                    // --- LÓGICA ADICIONADA PARA CLIENTE ---
+                    console.log("FileManager: Fetching data for CLIENTE");
+                    const response = await api.get('/meu-projeto');
+                    const projetoData = response.data.data;
+
+                    if (projetoData) {
+                        // Usa a função para transformar a resposta completa
+                        // Certifique-se que transformApiProjetoToFolderNode está definida/importada
+                        rootFolder = transformApiProjetoToFolderNode(projetoData);
+                        rootFolder.name = projetoData.nome || 'Meu Projeto'; // Ajusta nome da raiz
+                    } else {
+                        // Cliente sem projeto
+                        toast({ title: "Nenhum projeto encontrado", variant: "default" });
+                        rootFolder = {
+                            id: 'root-empty', name: 'Meu Projeto (Vazio)', type: 'folder', path: '/',
+                            author: user.nome || 'Cliente', modifiedAt: new Date().toISOString(),
+                            size: 0, children: []
+                        };
+                    }
+                }
+
+                // Atualiza os estados se rootFolder foi definido
+                if (rootFolder) {
+                    setFileSystem(rootFolder);
+                    setCurrentFolder(rootFolder);
+                    setBreadcrumbPath([rootFolder]);
+                } else {
+                     // Caso inesperado (ex: perfil desconhecido ou erro não capturado)
+                     console.error("Não foi possível definir rootFolder. User role:", user.role);
+                     throw new Error("Perfil de utilizador não reconhecido ou erro na busca de dados.");
+                }
 
             } catch (error: any) {
-                console.error("Erro ao buscar projetos:", error);
-                toast({
-                    title: "Erro ao carregar projetos",
-                    description: "Não foi possível buscar os dados do servidor.",
-                    variant: "destructive"
-                });
+                console.error("Erro ao buscar dados do FileManager:", error);
+                 // Tratamento de erro unificado (inclui 404 para cliente)
+                if (user.role === 'cliente' && error.response?.status === 404) {
+                     toast({ title: "Nenhum projeto associado", description: "Não há projetos vinculados à sua conta.", variant: 'default' });
+                      const emptyRoot: FolderNode = { id: 'root-empty', name: 'Meu Projeto (Vazio)', type: 'folder', path: '/', author: user.nome || 'Cliente', modifiedAt: new Date().toISOString(), size: 0, children: [] };
+                      setFileSystem(emptyRoot);
+                      setCurrentFolder(emptyRoot);
+                      setBreadcrumbPath([emptyRoot]);
+                } else { // Outros erros (500, rede, etc.)
+                    toast({
+                        title: "Erro ao carregar dados",
+                        description: error.response?.data?.message || error.message || "Tente recarregar a página.",
+                        variant: "destructive",
+                    });
+                     const errorRoot: FolderNode = { id: 'root-error', name: 'Erro ao Carregar', type: 'folder', path: '/', author: '', modifiedAt: '', size: 0, children: [] };
+                     setFileSystem(errorRoot);
+                     setCurrentFolder(errorRoot);
+                     setBreadcrumbPath([errorRoot]);
+                }
             } finally {
-                setIsLoadingData(false);
+                setIsLoadingData(false); // Garante que o loading termina
             }
         };
 
         fetchProjects();
 
-    }, [user, navigate, toast]);
+ }, [user, isLoading]); // Adicione/remova dependências conforme o seu código
 
     // Encontra uma pasta no sistema de arquivos
     const findFolderByPath = (path: string, node: FolderNode = fileSystem): FolderNode | null => {
@@ -227,6 +303,9 @@ const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]); // Initi
         }
         return null;
     };
+
+
+  
 
     // Navega para uma pasta
 const navigateToFolder = useCallback(async (path: string) => { // <-- Marque como async
@@ -293,6 +372,9 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
             }
         }
         setCurrentFolder(folderDataToShow);
+
+
+    
 
         // Constrói breadcrumbs (lógica existente adaptada)
         const pathParts = path === '/' ? [] : path.split('/').filter(Boolean);
@@ -366,64 +448,150 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
         if (folderName) {
             
             // Substitua a simulação por esta chamada à API:
-            try {
-                // (Opcional: mostrar um estado de loading)
-
-                // 1. Envia os dados para a API
-                // NOTA: Seu backend espera um 'nome_projeto'
+           try {
                 const response = await api.post('/projetos', {
                     nome_projeto: folderName,
                     descricao: 'Criado pelo Gestor',
-                    // Você pode precisar decidir se associa um cliente_user_id aqui
-                    cliente_user_id: null 
+                    cliente_user_id: null
                 });
+                const novoProjetoApi = response.data.data;
 
-                // 2. Pega o novo projeto retornado pela API
-                // (Assumindo que sua API retorna { data: NovoProjeto })
-                const novoProjetoApi = response.data.data; 
-
-                // 3. Converte a resposta da API para o formato do frontend (FileNode)
+                // Converte a resposta da API para o formato do frontend (FileNode)
                 const newFolder: FolderNode = {
-                    id: novoProjetoApi.id.toString(),
+                    id: String(novoProjetoApi.id),
                     name: novoProjetoApi.nome,
-                    path: `/${novoProjetoApi.id}`, // Ou a lógica de path que preferir
+                    path: `/${String(novoProjetoApi.id)}`, // Path consistente
                     type: 'folder',
-                    author: user?.fullName || 'Usuário',
+                    author: user?.nome || 'Utilizador', // Usar user.nome
                     modifiedAt: novoProjetoApi.criado_em || new Date().toISOString(),
                     size: 0,
                     children: []
                 };
 
-                // 4. Atualiza o estado local com os dados reais do backend
-                setCurrentFolder(prev => ({ ...prev, children: [newFolder, ...prev.children] }));
+                // --- ATUALIZAÇÃO DO ESTADO ---
+                // 1. Atualiza a pasta atual (raiz) para incluir a nova pasta
+                setCurrentFolder(prev => {
+                    if (!prev || prev.id !== 'root') return prev; // Só atualiza se estiver na raiz
+                    // Adiciona a nova pasta no início da lista para feedback visual
+                    return { ...prev, children: [newFolder, ...prev.children] }; 
+                });
+
+                // 2. Atualiza o fileSystem principal para incluir a nova pasta
+                setFileSystem(prev => {
+                    if (!prev || prev.id !== 'root') return prev; // Garante que é a raiz
+                     // Adiciona a nova pasta no início da lista
+                    return { ...prev, children: [newFolder, ...prev.children] };
+                });
+                // --- FIM DA ATUALIZAÇÃO ---
+
 
                 toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi salva no banco.` });
 
             } catch (error: any) {
                 console.error("Erro ao criar projeto:", error.response?.data || error.message);
-                toast({ 
-                    title: "Erro ao salvar", 
-                    description: "Não foi possível criar a pasta no servidor.", 
-                    variant: "destructive" 
+                toast({
+                    title: "Erro ao salvar",
+                    description: "Não foi possível criar a pasta no servidor.",
+                    variant: "destructive"
                 });
             }
         }
     };
 
-    const handleEdit = (node: FileSystemNode) => {
-        const newName = prompt(`Novo nome para "${node.name}":`, node.name);
-        if (newName && newName !== node.name) {
-            // Simulação de edição
-            toast({ title: "Renomeado!", description: `"${node.name}" agora é "${newName}".` });
-            // (Aqui você atualizaria o estado imutavelmente)
+  const handleEdit = async (node: FileSystemNode) => { // Marque como async
+        if (!user || user.role !== 'gestor') return;
+
+        const originalName = node.name; // Guardar nome original para o toast
+        const newName = prompt(`Novo nome para "${originalName}":`, originalName);
+
+        if (newName && newName !== originalName) {
+
+            let endpoint = '';
+            let payload: any = {};
+
+            if (node.type === 'folder') { // É um Projeto (pasta)
+                endpoint = `/projetos/${node.id}`;
+                payload = { nome_projeto: newName }; // Backend espera 'nome_projeto'
+            } else { // É um Arquivo
+                // API atual não suporta renomear ficheiros individuais
+                toast({
+                    title: "Funcionalidade Indisponível",
+                    description: "Ainda não é possível renomear ficheiros individuais.",
+                    variant: "default"
+                });
+                return; // Para a execução
+            }
+
+            try {
+                // (Opcional: Mostrar estado de loading)
+                const response = await api.patch(endpoint, payload); // Usar PATCH
+               const updatedApiData = response.data.data; // Assumindo withoutWrapping() ativo
+
+                 if (!updatedApiData || typeof updatedApiData.nome === 'undefined') {
+                    console.error("Dados atualizados inválidos recebidos da API:", updatedApiData);
+                    throw new Error("Resposta inválida do servidor após atualização.");
+                 }
+
+                // Atualiza o estado local APÓS sucesso da API
+                setCurrentFolder(prev => {
+                    if (!prev) return null;
+                    const updatedChildren = prev.children.map(child =>
+                        child.id === node.id
+                        ? { ...child, name: updatedApiData.nome } // Atualiza o nome local com dados da API
+                        : child
+                    );
+                    return { ...prev, children: updatedChildren };
+                });
+
+                toast({ title: "Renomeado!", description: `"${originalName}" agora é "${updatedApiData.nome}".` });
+
+            } catch (error: any) {
+                console.error(`Erro ao renomear ${node.type}:`, error.response?.data || error.message || error);
+                toast({
+                    title: "Erro ao renomear",
+                    description: `Não foi possível atualizar o nome no servidor. (${error.message})`,
+                    variant: "destructive"
+                });
+            }
         }
     };
 
-    const handleDelete = (node: FileSystemNode) => {
-        if (confirm(`Tem certeza que deseja excluir "${node.name}"?`)) {
-            // Simulação de exclusão
-            toast({ title: "Excluído!", description: `"${node.name}" foi excluído.` });
-            // (Aqui você atualizaria o estado imutavelmente)
+  const handleDelete = async (node: FileSystemNode) => { // Marque como async
+        if (!user || user.role !== 'gestor') return;
+
+        if (confirm(`Tem certeza que deseja excluir "${node.name}"? ${node.type === 'folder' ? '(Isso também excluirá todos os arquivos dentro dela)' : ''}`)) {
+            
+            // Determina o endpoint
+            let endpoint = '';
+            if (node.type === 'folder') {
+                endpoint = `/projetos/${node.id}`;
+            } else { // type === 'file'
+                endpoint = `/arquivos/${node.id}`;
+            }
+
+            try {
+                 // (Opcional: Mostrar estado de loading)
+                await api.delete(endpoint);
+
+                 // Atualiza o estado local de forma imutável
+                setCurrentFolder(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        children: prev.children.filter(child => child.id !== node.id) // Remove o item
+                    };
+                });
+
+                toast({ title: "Excluído!", description: `"${node.name}" foi excluído.` });
+
+            } catch (error: any) {
+                console.error(`Erro ao excluir ${node.type}:`, error.response?.data || error.message);
+                 toast({
+                    title: "Erro ao excluir",
+                    description: `Não foi possível excluir o item do servidor. (${error.response?.data?.message || error.message})`,
+                    variant: "destructive"
+                });
+            }
         }
     };
 
@@ -495,15 +663,20 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
             onDragLeave={() => setDraggedOverFolder(null)}
             onDrop={() => setDraggedOverFolder(null)}
         >
-            <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-10 shadow-sm">
-                <div className="container mx-auto px-4 py-4">
-                    <Button variant="ghost" onClick={() => navigate('/dashboard')} className="mb-2">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Voltar ao Dashboard
-                    </Button>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                        Gestor de Arquivos
-                    </h1>
+          <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-10 shadow-sm">
+                <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground">
+                            {user?.role === 'gestor' ? 'Gestor de Arquivos' : 'Meus Arquivos'}
+                        </h1>
+                        {/* A propriedade fullName não existe no seu tipo User, use 'nome' */}
+                        <p className="text-muted-foreground">Bem-vindo, {user?.nome || 'Utilizador'}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Button variant="outline" onClick={logout} className="gap-2"> {/* Confirme que está usando 'logout' aqui */}
+                            <LogOut className="w-4 h-4" /> Sair
+                        </Button>
+                    </div>
                 </div>
             </header>
 
@@ -534,24 +707,26 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
                             </Breadcrumb>
 
                             {/* Botões de Ação */}
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={handleCreateFolder}>
-                                    <FolderPlus className="w-4 h-4 mr-2" />
-                                    Nova Pasta
-                                </Button>
-                              <Button 
-    onClick={() => setIsUploadModalOpen(true)} 
-    disabled={uploading || currentFolder.id === 'root'} // <-- Correção aqui
-    title={currentFolder.id === 'root' ? "Selecione um projeto para enviar arquivos" : "Enviar arquivo para esta pasta"} // <-- Tooltip opcional
->
-    {uploading ? (
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-    ) : (
-        <UploadCloud className="w-4 h-4 mr-2" />
-    )}
-    Enviar Arquivo
-</Button>
-                            </div>
+                          {user?.role === 'gestor' && ( // <-- Adicione esta condição
+                                <div className="flex gap-2">
+                                    <Button variant="outline" onClick={handleCreateFolder}>
+                                        <FolderPlus className="w-4 h-4 mr-2" />
+                                        Nova Pasta
+                                    </Button>
+                                    <Button
+                                        onClick={() => setIsUploadModalOpen(true)}
+                                        disabled={uploading || currentFolder.id === 'root'}
+                                        title={currentFolder.id === 'root' ? "Selecione um projeto para enviar arquivos" : "Enviar arquivo para esta pasta"}
+                                    >
+                                        {uploading ? (
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <UploadCloud className="w-4 h-4 mr-2" />
+                                        )}
+                                        Enviar Arquivo
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Barra de Pesquisa */}
@@ -648,24 +823,26 @@ const navigateToFolder = useCallback(async (path: string) => { // <-- Marque com
                                                     {node.type === 'file' ? formatBytes(node.size) : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="w-8 h-8"
-                                                            onClick={(e) => { e.stopPropagation(); handleEdit(node); }}
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="w-8 h-8 text-destructive hover:text-destructive"
-                                                            onClick={(e) => { e.stopPropagation(); handleDelete(node); }}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
+                                                    {user?.role === 'gestor' && ( // <-- Adicione esta condição
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="w-8 h-8"
+                                                                onClick={(e) => { e.stopPropagation(); handleEdit(node); }}
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="w-8 h-8 text-destructive hover:text-destructive"
+                                                                onClick={(e) => { e.stopPropagation(); handleDelete(node); }}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))

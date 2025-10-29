@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User } from 'lucide-react';
 
 export default function AuthPage() {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, isAuthenticated, user: authenticatedUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +52,16 @@ const handleLogin = async (e: React.FormEvent) => {
     }
   };
 
+
 useEffect(() => {
-  if (User) { // <--- Problem: 'User' is not defined here
-    navigate('/dashboard'); // This is line 36
-  }
-}, [User, navigate]); // <-- Problem: 'User' is not defined here
+    if (!isLoading && isAuthenticated && authenticatedUser) {
+        console.log("Usuário autenticado, redirecionando para /file-manager");
+        // *** ALTERAÇÃO AQUI: Sempre redireciona para /file-manager ***
+        navigate('/file-manager', { replace: true });
+    } else if (!isLoading && !isAuthenticated) {
+         console.log("Nenhum usuário autenticado, permanecendo em /auth.");
+    }
+  }, [authenticatedUser, isAuthenticated, isLoading, navigate]);// <-- Problem: 'User' is not defined here
 
   const [loginForm, setLoginForm] = useState({
     email: '',
