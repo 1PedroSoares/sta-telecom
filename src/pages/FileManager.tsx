@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter
 } from "@/components/ui/table";
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList,
@@ -51,6 +51,8 @@ type ApiProjeto = {
   criado_em: string;
   cliente?: { nome: string; };
   arquivos: ApiArquivo[]; // Usa o tipo ApiArquivo que já definimos
+  size: number;
+  children?: ApiProjeto[];
 };
 
 type NodeBase = {
@@ -140,17 +142,35 @@ const getNodeType = (node: FileSystemNode) => {
 
 // Formatar tamanho
 const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
+    // 1. Verifica se 'bytes' é nulo, undefined, 0, ou NaN
+ if (!bytes || bytes <= 0) {
+        // --- MUDANÇA AQUI ---
+        // Se o tamanho for 0, exibe '0 Bytes' em vez de um traço
+        return '0 Bytes';
+        // --- FIM DA MUDANÇA ---
+    }
+
+    // 2. Se for um número válido, continua o cálculo
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
 // Formatar data
 const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('pt-BR', {
+    // 1. Cria o objeto Date
+    const date = new Date(isoString);
+
+    // 2. Verifica se a data é válida (isNaN(date.getTime()))
+    if (!isoString || isNaN(date.getTime())) {
+        return '—'; // Retorna um traço se a data for nula ou inválida
+    }
+
+    // 3. Se for válida, formata
+    return date.toLocaleDateString('pt-BR', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 };
@@ -159,6 +179,7 @@ const formatDate = (isoString: string) => {
 export default function FileManager() {
     const navigate = useNavigate();
    const { user, logout, isLoading } = useAuth();
+   const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -166,6 +187,8 @@ export default function FileManager() {
     const [fileBlobUrl, setFileBlobUrl] = useState<string | null>(null); // Armazena o URL local (Blob)
     const [isFetchingFile, setIsFetchingFile] = useState(false);
     const [fileHtmlContent, setFileHtmlContent] = useState<string | null>(null);
+    // Estado geral de upload (já pode existir)
+    const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null>(null);
 
     // (Em um app real, fileSystem seria buscado do backend)
  const [fileSystem, setFileSystem] = useState<FolderNode | null>(null); // Initialize as null
@@ -189,7 +212,7 @@ const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]); // Initi
       path: `/${String(apiProjeto.id)}`, // Ajuste o path conforme necessário (talvez só '/' para o cliente?)
       author: apiProjeto.cliente?.nome || 'Cliente',
       modifiedAt: apiProjeto.criado_em || new Date().toISOString(),
-      size: 0,
+      size: apiProjeto.size || 0,
       children: apiProjeto.arquivos.map(apiArquivo => ({
         id: String(apiArquivo.id),
         name: apiArquivo.nome,
@@ -227,17 +250,28 @@ useEffect(() => {
                     const response = await api.get('/projetos');
                     const projetosRaizDaApi = response.data.data; // Assumindo wrapping
 
-                    const rootProjectFolders: FolderNode[] = projetosRaizDaApi.map((proj: ApiProjeto) => ({
-                        id: String(proj.id),
-                        name: proj.nome,
-                        type: 'folder',
-                        path: `/${String(proj.id)}`, // Path de nível 1
-                        author: proj.cliente?.nome || 'Gestor',
-                        modifiedAt: proj.criado_em || new Date().toISOString(),
-                        size: 0,
-                        // Importante: Inicializa children como vazio. Serão carregados ao navegar.
-                        children: [],
-                    }));
+                  const rootProjectFolders: FolderNode[] = projetosRaizDaApi.map((proj: ApiProjeto) => {
+                        // --- INÍCIO DA LÓGICA DE VALIDAÇÃO DE DATA ---
+                        const apiDate = proj.criado_em; // Data vinda da API
+                        const parsedDate = new Date(apiDate); // Tenta converter
+
+                        // Verifica se a data da API existe E se é uma data válida
+                        const validModifiedAt = (apiDate && !isNaN(parsedDate.getTime()))
+                            ? apiDate // Se for válida, usa a data da API
+                            : new Date().toISOString(); // Senão (null, "0000-00-00"), usa a data de AGORA
+                        // --- FIM DA LÓGICA DE VALIDAÇÃO ---
+
+                        return {
+                            id: String(proj.id),
+                            name: proj.nome,
+                            type: 'folder',
+                            path: `/${String(proj.id)}`, // Path de nível 1
+                            author: proj.cliente?.nome || 'Gestor',
+                            modifiedAt: validModifiedAt, // <-- USA A DATA VALIDADA
+                            size: 0,
+                            children: [],
+                        };
+                    });
 
                     rootFolder = {
                         id: 'root', name: 'Todos os Projetos', type: 'folder', path: '/',
@@ -361,7 +395,7 @@ useEffect(() => {
                 path: `${path}/${String(childProj.id)}`, // Path da subpasta
                 author: childProj.cliente?.nome || 'Gestor',
                 modifiedAt: childProj.criado_em || new Date().toISOString(),
-                size: 0,
+                size: childProj.size || 0,
                 children: [],
             }));
 
@@ -384,7 +418,7 @@ useEffect(() => {
                 path: path, // Usa o path da navegação
                 author: projetoApi.cliente?.nome || 'Gestor',
                 modifiedAt: projetoApi.criado_em || new Date().toISOString(),
-                size: 0,
+                size: projetoApi.size || 0,
                 children: [...subFolders, ...files],
             };
 
@@ -785,45 +819,75 @@ const renderFilePreview = (file: FileNode) => {
     };
 
     // --- FUNÇÃO PARA UPLOAD VIA DRAG & DROP ---
-    const handleDropUpload = async (files: File[], targetFolder: FolderNode) => {
-        if (uploading) return;
-
-        setUploading(true);
-        toast({ title: "Enviando arquivos...", description: `Para: ${targetFolder.name}` });
-
-        // Simulação de upload (como no UploadModal)
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const newFilesData: FileNode[] = files.map((file, i) => ({
-            id: `new-file-${Date.now()}-${i}`,
-            name: file.name,
-            type: 'file',
-            fileType: (file.name.split('.').pop() || 'other') as FileType,
-            author: user?.fullName || 'Usuário',
-            modifiedAt: new Date().toISOString(),
-            size: file.size,
-            path: `${targetFolder.path === '/' ? '' : targetFolder.path}/${file.name}`
-        }));
-        // Fim da simulação
-
-        toast({ title: "Upload concluído!", description: `${files.length} arquivos enviados para ${targetFolder.name}.` });
-
-        // Se o drop foi na pasta atual, atualiza a lista
-        if (targetFolder.id === currentFolder.id) {
-            handleUploadComplete(newFilesData);
-        } else {
-            // Se o drop foi em uma subpasta, atualiza o 'children' dela (simulação)
-            setCurrentFolder(prev => ({
-                ...prev,
-                children: prev.children.map(child => {
-                    if (child.id === targetFolder.id && child.type === 'folder') {
-                        return { ...child, children: [...child.children, ...newFilesData] };
-                    }
-                    return child;
-                })
-            }));
+   const handleDropUpload = async (files: File[], targetFolder: FolderNode) => { // Recebe targetFolder
+        // Ignora se já estiver a enviar ou se o alvo não for uma pasta válida (raiz)
+        if (uploading || !targetFolder || targetFolder.id === 'root') {
+            if (targetFolder.id === 'root') {
+                toast({ title: "Ação Inválida", description: "Não pode soltar ficheiros na pasta raiz.", variant: "destructive"});
+            }
+            setDraggedOverFolderId(null);
+            return;
         }
 
-        setUploading(false);
+        setUploading(true);
+        setDraggedOverFolderId(null);
+        toast({ title: "Iniciando upload...", description: `Enviando ${files.length} ficheiro(s) para "${targetFolder.name}"` }); // Usa targetFolder.name
+
+        // Cria as promessas de upload
+        const uploadPromises = files.map(file => {
+            const formData = new FormData();
+            formData.append('arquivo', file);
+            // --- VERIFICAÇÃO CRUCIAL ---
+            // Certifique-se que está a usar targetFolder.id aqui
+            formData.append('projeto_id', targetFolder.id);
+
+            // Retorna a promessa da chamada API
+            return api.post<{ data: ApiArquivo }>('/arquivos', formData);
+        });
+
+        try {
+            const responses = await Promise.all(uploadPromises);
+
+            // Processa as respostas para criar os FileNodes
+          const newFilesData: FileNode[] = responses.map((response, index) => {
+                const newArquivo = response.data.data;
+                return {
+                    id: String(newArquivo.id),
+                    name: newArquivo.nome,
+                    type: 'file',
+                    fileType: getFileTypeFromMime(newArquivo.mime_type),
+                    // Path relativo à pasta alvo
+                    path: `${targetFolder.path === '/' ? '' : targetFolder.path}/${newArquivo.nome}`, // Usa targetFolder.path
+                    author: newArquivo.enviado_por?.nome || user?.nome || 'Usuário',
+                    modifiedAt: newArquivo.data_upload_iso,
+                    size: newArquivo.tamanho_bytes,
+                };
+            });
+
+            toast({ title: "Upload concluído!", description: `${files.length} ficheiro(s) enviados para ${targetFolder.name}.` });
+
+            // Atualiza o estado local se o drop foi na pasta atualmente visualizada
+          if (targetFolder.id === currentFolder?.id) { // Compara targetFolder com currentFolder
+                setCurrentFolder(prev => prev ? ({ ...prev, children: [...prev.children, ...newFilesData] }) : null);
+            } else {
+                 console.log(`Ficheiros enviados para a pasta "${targetFolder.name}" (não visível atualmente).`);
+            }
+
+        } catch (err: any) {
+            console.error('Erro detalhado no drop upload:', err.response?.data || err.message || err);
+            let errorMsg = `Ocorreu um erro ao enviar os ficheiros.`;
+            if (err.response && err.response.data && err.response.data.errors) {
+                 errorMsg = 'Erro de validação: ' + Object.values(err.response.data.errors).flat().join(' ');
+            } else if (err.response?.data?.message) {
+                 errorMsg = err.response.data.message;
+            } else if (err.message) {
+                 errorMsg = err.message;
+            }
+            setError(errorMsg); // Assume que tem um state 'error' ou usa toast
+             toast({ title: "Erro no Upload", description: errorMsg, variant: "destructive" });
+        } finally {
+            setUploading(false);
+        }
     };
 
    if (isLoadingData || !user) {
@@ -839,11 +903,22 @@ const renderFilePreview = (file: FileNode) => {
 
     return (
         <div
-            className="min-h-screen bg-muted/20 flex flex-col"
-            // Eventos no container principal para limpar o estado de drag
-            onDragLeave={() => setDraggedOverFolder(null)}
-            onDrop={() => setDraggedOverFolder(null)}
-        >
+        className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col"
+        // --- ADICIONE ESTES EVENTOS ---
+        onDragLeave={(e) => {
+             // Limpa se sair da janela inteira ou para elemento não relacionado
+             const relatedTarget = e.relatedTarget as Node;
+             if (!e.currentTarget.contains(relatedTarget) && relatedTarget !== null) { // Evita limpar ao mover entre linhas
+                setDraggedOverFolderId(null);
+             }
+        }}
+        onDrop={(e) => {
+            // Limpa se o drop ocorrer fora de uma pasta válida
+            e.preventDefault(); // Evita comportamento padrão
+            setDraggedOverFolderId(null);
+        }}
+        // --- FIM DA ADIÇÃO ---
+    >
           <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-10 shadow-sm">
                 <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                     <div>
@@ -946,50 +1021,89 @@ const renderFilePreview = (file: FileNode) => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredAndSortedItems.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                                {searchTerm ? "Nenhum item encontrado." : "Esta pasta está vazia."}
-                                            </TableCell>
-                                        </TableRow>
+                                   {filteredAndSortedItems.length === 0 ? (
+        <TableRow>
+            {/* Agora esta célula é apenas informativa, sem handlers de drop */}
+            <TableCell
+                colSpan={6}
+                className="h-24 text-center text-muted-foreground"
+            >
+                {searchTerm ? "Nenhum item encontrado." : "Esta pasta está vazia."}
+            </TableCell>
+        </TableRow>
+        
                                     ) : (
+                                       
                                         filteredAndSortedItems.map(node => (
-                                            <TableRow
-                                                key={node.id}
-                                                // --- ALTERAÇÕES AQUI ---
-                                                className={cn(
-                                                    "transition-all",
-                                                    node.type === 'folder' && "hover:bg-muted/50 cursor-pointer",
-                                                    draggedOverFolder === node.id && "bg-primary/10 ring-2 ring-primary ring-inset" // Indicador visual
-                                                )}
-                                                // MUDANÇA: de onDoubleClick para onClick
-                                                onClick={() => node.type === 'folder' && navigateToFolder(node.path)}
+                                           <TableRow
+    key={node.id}
+    className={cn(
+        "transition-all",
+        // Estilos existentes
+        node.type === 'folder' && "hover:bg-muted/50 cursor-pointer",
+        // --- NOVO ESTILO PARA FEEDBACK VISUAL ---
+        draggedOverFolderId === node.id && node.type === 'folder' && "bg-primary/10 ring-2 ring-primary ring-inset"
+    )}
+    onDoubleClick={() => node.type === 'folder' && navigateToFolder(node.path)}
 
-                                                // --- NOVOS EVENTOS PARA DRAG & DROP ---
-                                                onDragEnter={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    // Verifica se são arquivos sendo arrastados e se é uma pasta
-                                                    if (node.type === 'folder' && e.dataTransfer.types.includes('Files')) {
-                                                        setDraggedOverFolder(node.id);
-                                                    }
-                                                }}
-                                                onDragOver={(e) => {
-                                                    e.preventDefault(); // Isso é CRUCIAL para permitir o drop
-                                                    e.stopPropagation();
-                                                }}
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setDraggedOverFolder(null); // Limpa o indicador
+    // --- NOVOS EVENTOS PARA DRAG & DROP ---
+  onDragEnter={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Só ativa se forem ficheiros e NÃO for a pasta raiz
+                            if (e.dataTransfer.types.includes('Files') && currentFolder?.id !== 'root') {
+                                // Opcional: Adicionar um estado/classe para feedback visual na área geral
+                                // Ex: setDraggingOverArea(true);
+                                e.currentTarget.classList.add('bg-primary/5', 'ring-2', 'ring-primary', 'ring-inset'); // Feedback visual direto
+                            }
+                        }}
+                       onDragOver={(e) => {
+                                        // Previne o comportamento padrão (abrir ficheiro)
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Define o efeito visual (opcional, mas bom)
+                                        if (currentFolder?.id !== 'root') {
+                                             e.dataTransfer.dropEffect = 'copy';
+                                        } else {
+                                             e.dataTransfer.dropEffect = 'none';
+                                        }
+                                    }}
+                       onDragLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+         const relatedTarget = e.relatedTarget as Node; // <-- Confirme que está assim
+         if (!e.currentTarget.contains(relatedTarget)) {
+             if (draggedOverFolderId === node.id) {
+                 setDraggedOverFolderId(null);
+             }
+         }
+    }}
+                   onDrop={(e) => {
+    // Previne o comportamento padrão
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggedOverFolderId(null);
+    // Remove o feedback visual do CardContent (se existir)
+    const cardContent = e.currentTarget.closest('div[data-radix-scroll-area-viewport]')?.parentElement?.parentElement; // Heurística para encontrar CardContent
+    cardContent?.classList.remove('bg-primary/5', 'ring-2', 'ring-primary', 'ring-inset');
 
-                                                    if (node.type === 'folder') {
-                                                        const files = Array.from(e.dataTransfer.files);
-                                                        if (files.length > 0 && !uploading) {
-                                                            handleDropUpload(files, node);
-                                                        }
-                                                    }
-                                                }}
+    const files = Array.from(e.dataTransfer.files); // Pega os arquivos uma vez
+
+    if (node.type === 'folder') { // Verifica se soltou EM CIMA de uma linha de PASTA
+        if (files.length > 0 && !uploading) {
+            // Chama o upload para a pasta específica da linha ('node')
+            handleDropUpload(files, node); // <--- Upload para a pasta da linha
+        }
+    } else if (currentFolder && currentFolder.id !== 'root') { // SENÃO, verifica se soltou na ÁREA GERAL da pasta atual (e não é a raiz)
+        // Este bloco só executa se o 'if' anterior for falso
+        if (files.length > 0 && !uploading) {
+            // Chama o upload para a pasta atualmente visualizada ('currentFolder')
+            handleDropUpload(files, currentFolder); // <--- Upload para a pasta atual
+        }
+    } else { // Caso contrário (soltou na raiz ou em um arquivo, ou currentFolder não existe)
+         toast({ title: "Ação Inválida", description: "Não pode soltar ficheiros aqui ou na pasta raiz.", variant: "destructive"});
+    }
+}}
                                             >
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
@@ -1013,8 +1127,9 @@ const renderFilePreview = (file: FileNode) => {
                                                 <TableCell className="text-muted-foreground">{getNodeType(node)}</TableCell>
                                                 <TableCell className="text-muted-foreground">{node.author}</TableCell>
                                                 <TableCell className="text-muted-foreground">{formatDate(node.modifiedAt)}</TableCell>
-                                                <TableCell className="text-muted-foreground">
-                                                    {node.type === 'file' ? formatBytes(node.size) : '—'}
+              <TableCell className="text-muted-foreground">
+                                                    {/* Esta lógica agora funciona para arquivos E pastas */}
+                                                    {formatBytes(node.size)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
 
@@ -1052,8 +1167,70 @@ const renderFilePreview = (file: FileNode) => {
                                                 </TableCell>
                                             </TableRow>
                                         ))
+                                       
                                     )}
+                                    
                                 </TableBody>
+
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className={cn(
+                                                "h-24 text-center text-muted-foreground transition-all",
+                                                currentFolder?.id !== 'root' && "border-2 border-dashed border-transparent cursor-copy"
+                                            )}
+                                            
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                // Só permite soltar se NÃO for a raiz
+                                                if (currentFolder && currentFolder.id !== 'root') {
+                                                    e.dataTransfer.dropEffect = 'copy';
+                                                    // Adiciona feedback visual (borda e fundo)
+                                                    e.currentTarget.classList.add('bg-primary/10', 'border-primary');
+                                                } else {
+                                                    e.dataTransfer.dropEffect = 'none';
+                                                }
+                                            }}
+                                            onDragLeave={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                // Remove feedback visual
+                                                e.currentTarget.classList.remove('bg-primary/10', 'border-primary');
+                                            }}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                // Remove feedback visual
+                                                e.currentTarget.classList.remove('bg-primary/10', 'border-primary');
+
+                                                // Lógica de upload para a PASTA ATUAL
+                                                if (currentFolder && currentFolder.id !== 'root') {
+                                                    const files = Array.from(e.dataTransfer.files);
+                                                    if (files.length > 0 && !uploading) {
+                                                        // Usa a mesma função, mas sempre com 'currentFolder'
+                                                        handleDropUpload(files, currentFolder);
+                                                    }
+                                                } else {
+                                                    toast({ title: "Ação Inválida", description: "Não pode soltar ficheiros na pasta raiz.", variant: "destructive" });
+                                                }
+                                            }}
+                                        >
+                                            {/* Mensagem dinâmica */}
+                                            {uploading ? (
+                                                <div className="flex justify-center items-center">
+                                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                     Enviando...
+                                                </div>
+                                            ) : (
+                                                currentFolder?.id !== 'root'
+                                                    ? `Arraste arquivos aqui para adicionar a "${currentFolder?.name}"`
+                                                    : 'Selecione um projeto para enviar arquivos'
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                </TableFooter>
                             </Table>
                         </div>
                     </CardContent>
