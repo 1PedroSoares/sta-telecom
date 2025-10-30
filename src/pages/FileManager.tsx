@@ -3,17 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import {
     Folder, FileText, File, ChevronRight, UploadCloud, FolderPlus, ArrowLeft,
     FileSpreadsheet, FileImage, FileArchive, Edit, Trash2, Search,
-    ArrowUp, ArrowDown, Loader2, LogOut, Download // Adicionado Loader2
+    ArrowUp, ArrowDown, Loader2, LogOut, Download, UserPlus // Adicionado Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter
 } from "@/components/ui/table";
+
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList,
     BreadcrumbPage, BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from '@/components/ui/select';
+import { User } from '@/lib/authApi';
+import { Label } from '@/components/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -41,6 +47,13 @@ type ApiArquivo = {
   tamanho_bytes: number;
   data_upload_iso: string;
   enviado_por?: { nome: string; }; // Simplificado
+};
+
+type Cliente = {
+    id: number;
+    nome: string;
+    email: string;
+    role: 'cliente' | 'gestor';
 };
 
 
@@ -189,7 +202,20 @@ export default function FileManager() {
     const [fileHtmlContent, setFileHtmlContent] = useState<string | null>(null);
     // Estado geral de upload (já pode existir)
     const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newProjectName, setNewProjectName] = useState('');
+    const [newProjectClientId, setNewProjectClientId] = useState<string | null>(null);
+    const [isCreatingProject, setIsCreatingProject] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
+    const [clientList, setClientList] = useState<Cliente[]>([]);
+    const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+    const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
+    const [isSubmittingModal, setIsSubmittingModal] = useState(false);
 
+
+    const [newProjectForm, setNewProjectForm] = useState({ name: '', clientId: '' });
+    // Estado para o formulário de novo cliente
+    const [newClientForm, setNewClientForm] = useState({ name: '', email: '', password: '', password_confirmation: '' });
     // (Em um app real, fileSystem seria buscado do backend)
  const [fileSystem, setFileSystem] = useState<FolderNode | null>(null); // Initialize as null
 const [currentFolder, setCurrentFolder] = useState<FolderNode | null>(null); // Initialize as null
@@ -227,6 +253,23 @@ const [breadcrumbPath, setBreadcrumbPath] = useState<FolderNode[]>([]); // Initi
     return projectFolder;
   };
 
+  const fetchClients = useCallback(async () => {
+        if (user?.role !== 'gestor') return; // Só busca se for gestor
+        try {
+            console.log("FileManager: Fetching client list for gestor...");
+            const response = await api.get('/clientes'); // Rota da API
+            setClientList(response.data.data); // Armazena a lista de clientes
+        } catch (error: any) {
+            console.error("Erro ao buscar lista de clientes:", error);
+            toast({
+                title: "Erro ao buscar clientes",
+                description: "Não foi possível carregar a lista de clientes.",
+                variant: "destructive"
+            });
+        }
+    }, [user, toast]);
+  
+
     
     // Redireciona se não for 'employee'
 useEffect(() => {
@@ -254,6 +297,7 @@ useEffect(() => {
                     const response = await api.get('/projetos');
                     projetosRaizDaApi = response.data.data;
                     rootName = 'Todos os Projetos';
+                    fetchClients();
                 } else if (user.role === 'cliente') {
                     console.log("FileManager: Fetching data for CLIENTE (Root Level)");
                     // Esta rota AGORA retorna '{"data": [projeto]}' ou '{"data": []}'
@@ -333,7 +377,7 @@ useEffect(() => {
 
         fetchProjects();
 
- }, [user, isLoading]); // Adicione/remova dependências conforme o seu código
+ }, [user, isLoading,  toast]); // Adicione/remova dependências conforme o seu código
 
     // Encontra uma pasta no sistema de arquivos
     const findFolderByPath = (path: string, node: FolderNode = fileSystem): FolderNode | null => {
@@ -349,6 +393,8 @@ useEffect(() => {
 
 
   
+
+    
 
     // Navega para uma pasta
 // Navega para uma pasta, buscando seu conteúdo da API (exceto para a raiz)
@@ -646,64 +692,108 @@ const renderFilePreview = (file: FileNode) => {
     };
 
     // Ações
-   const handleCreateFolder = async () => { // Marque como async
+    const handleCreateFolder = () => {
         if (!currentFolder || !user || user.role !== 'gestor') return;
 
-        const folderName = prompt("Nome da nova pasta:");
-        if (folderName) {
+        // Limpa o formulário e abre o modal
+        setNewProjectForm({ name: '', clientId: '' });
+        setIsCreateProjectModalOpen(true);
+    };
+
+    // --- CORREÇÃO AQUI: Renomeando a função ---
+    const handleCreateProjectSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentFolder || !user || user.role !== 'gestor' || !newProjectForm.name) return;
+
+        setIsSubmittingModal(true);
+        
+        try {
+            const parentId = currentFolder.id === 'root' ? null : currentFolder.id;
+            const clienteId = newProjectForm.clientId || null; // Converte '' para null
+
+            const response = await api.post('/projetos', {
+                nome_projeto: newProjectForm.name,
+                descricao: `Projeto ${parentId ? 'dentro de ' + currentFolder.name : 'raiz'}`,
+                cliente_user_id: clienteId,
+                parent_id: parentId
+            });
+            const novoProjetoApi = response.data.data;
+
+            // Encontra o nome do cliente na lista local para exibição
+            const cliente = clientList.find(c => String(c.id) === clienteId);
+
+            const newFolder: FolderNode = {
+                id: novoProjetoApi.id,
+                name: novoProjetoApi.nome,
+                path: `${currentFolder.path === '/' ? '' : currentFolder.path}/${String(novoProjetoApi.id)}`,
+                type: 'folder',
+                author: cliente?.nome || user?.nome || 'Gestor', // Usa o nome do cliente se associado
+                modifiedAt: novoProjetoApi.criado_em || new Date().toISOString(),
+                size: 0,
+                children: []
+            };
+
+            setCurrentFolder(prev => {
+                if (!prev) return null;
+                return { ...prev, children: [newFolder, ...prev.children] };
+            });
+
+            toast({ title: "Projeto criado!", description: `O projeto "${newFolder.name}" foi criado.` });
+            setIsCreateProjectModalOpen(false); // Fecha o modal
+
+        } catch (error: any) {
+            console.error("Erro ao criar projeto:", error.response?.data || error.message);
+            toast({
+                title: "Erro ao salvar",
+                description: error.response?.data?.errors
+                    ? Object.values(error.response.data.errors).flat().join(' ')
+                    : (error.response?.data?.message || "Não foi possível criar o projeto."),
+                variant: "destructive"
+            });
+        } finally {
+            setIsSubmittingModal(false);
+        }
+    };
+
+
+    const handleCreateClient = () => {
+        if (!user || user.role !== 'gestor') return;
+        setNewClientForm({ name: '', email: '', password: '', password_confirmation: '' });
+        setIsCreateClientModalOpen(true);
+    };
+
+    // --- NOVA FUNÇÃO: SUBMISSÃO DO MODAL DE CLIENTE ---
+    const handleCreateClientSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmittingModal(true);
+
+        try {
+            const response = await api.post('/clientes', newClientForm); // Rota da API
+            const novoCliente = response.data.data;
+
+            toast({
+                title: "Cliente criado!",
+                description: `O usuário ${novoCliente.nome} foi criado com sucesso.`
+            });
+
+            // Atualiza a lista de clientes no dropdown
+            fetchClients();
+            setIsCreateClientModalOpen(false); // Fecha o modal
+
+        } catch (error: any) {
+            console.error("Erro ao criar cliente:", error.response?.data || error.message);
+            // Pega erros de validação da API
+            const errorMsg = error.response?.data?.errors
+                ? Object.values(error.response.data.errors).flat().join(' ')
+                : (error.response?.data?.message || "Não foi possível criar o cliente.");
             
-            // Substitua a simulação por esta chamada à API:
-           try {
-               const parentId = currentFolder.id === 'root' ? null : currentFolder.id;
-
-                const response = await api.post('/projetos', {
-                    nome_projeto: folderName,
-                    descricao: `Subpasta de ${currentFolder.name}`, // Descrição opcional
-                    cliente_user_id: null, // Subpastas geralmente não têm cliente direto
-                    parent_id: parentId   // Envia o parent_id correto
-                });
-              const novoProjetoApi = response.data.data; // Assumindo wrapping ativo
-
-                 // Converte a resposta da API para o formato do frontend (FileNode)
-                const newFolder: FolderNode = {
-                    id: String(novoProjetoApi.id),
-                    name: novoProjetoApi.nome,
-                    // O path agora precisa refletir a hierarquia
-                    // Uma lógica mais robusta seria buscar o path completo do pai, mas por agora:
-                    path: `${currentFolder.path === '/' ? '' : currentFolder.path}/${String(novoProjetoApi.id)}`, // Pode precisar de ajuste
-                    type: 'folder',
-                    author: user?.nome || 'Utilizador',
-                    modifiedAt: novoProjetoApi.criado_em || new Date().toISOString(),
-                    size: 0,
-                    children: [] // Nova pasta começa vazia
-                };
-
-                // Atualiza APENAS a pasta atual para incluir a nova subpasta
-                setCurrentFolder(prev => {
-                    if (!prev) return null;
-                    // Adiciona a nova pasta no início da lista de children da pasta atual
-                    return { ...prev, children: [newFolder, ...prev.children] };
-                });
-
-                // 2. Atualiza o fileSystem principal para incluir a nova pasta
-                // setFileSystem(prev => {
-                //     if (!prev || prev.id !== 'root') return prev; // Garante que é a raiz
-                //      // Adiciona a nova pasta no início da lista
-                //     return { ...prev, children: [newFolder, ...prev.children] };
-                // });
-                // --- FIM DA ATUALIZAÇÃO ---
-
-
-                toast({ title: "Pasta criada!", description: `A pasta "${folderName}" foi salva no banco.` });
-
-            } catch (error: any) {
-                console.error("Erro ao criar projeto:", error.response?.data || error.message);
-                toast({
-                    title: "Erro ao salvar",
-                    description: "Não foi possível criar a pasta no servidor.",
-                    variant: "destructive"
-                });
-            }
+            toast({
+                title: "Erro ao criar cliente",
+                description: errorMsg,
+                variant: "destructive"
+            });
+        } finally {
+            setIsSubmittingModal(false);
         }
     };
 
@@ -957,11 +1047,23 @@ const renderFilePreview = (file: FileNode) => {
                             </Breadcrumb>
 
                             {/* Botões de Ação */}
-                          {user?.role === 'gestor' && ( // <-- Adicione esta condição
-                                <div className="flex gap-2">
-                                    <Button variant="outline" onClick={handleCreateFolder}>
+                         {user?.role === 'gestor' && (
+                                <div className="flex flex-wrap gap-2">
+                                    {/* --- NOVO BOTÃO: NOVO CLIENTE --- */}
+                                    <Button variant="outline" onClick={handleCreateClient}>
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        Novo Cliente
+                                    </Button>
+
+                                    {/* --- BOTÃO ATUALIZADO: NOVA PASTA/PROJETO --- */}
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleCreateFolder} // Abre o modal
+                                        disabled={uploading} // Habilitado mesmo na raiz
+                                    >
                                         <FolderPlus className="w-4 h-4 mr-2" />
-                                        Nova Pasta
+                                        {/* Muda o texto se estiver na raiz */}
+                                        {currentFolder?.id === 'root' ? 'Novo Projeto' : 'Nova Pasta'}
                                     </Button>
                                     <Button
                                         onClick={() => setIsUploadModalOpen(true)}
@@ -1284,7 +1386,149 @@ const renderFilePreview = (file: FileNode) => {
                          </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                
             )}
+            <Dialog open={isCreateProjectModalOpen} onOpenChange={setIsCreateProjectModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {currentFolder?.id === 'root' ? 'Criar Novo Projeto' : 'Criar Nova Pasta'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {currentFolder?.id === 'root' 
+                                ? 'Insira um nome para o novo projeto e, opcionalmente, associe um cliente.'
+                                : 'Insira um nome para a nova subpasta.'
+                            }
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateProjectSubmit}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="project-name" className="text-right">
+                                    Nome *
+                                </Label>
+                                <Input
+                                    id="project-name"
+                                    value={newProjectForm.name}
+                                    onChange={(e) => setNewProjectForm(prev => ({ ...prev, name: e.target.value }))}
+                                    className="col-span-3"
+                                    required
+                                    disabled={isSubmittingModal}
+                                />
+                            </div>
+                            
+                            {/* Mostra o seletor de cliente APENAS se estiver criando um projeto na raiz */}
+                            {currentFolder?.id === 'root' && (
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="project-client" className="text-right">
+                                        Cliente
+                                    </Label>
+                                   <Select
+                                        value={newProjectForm.clientId}
+                                        onValueChange={(value) => {
+                                            // <-- CORREÇÃO AQUI -->
+                                            // Se o valor for "none", armazena "", senão armazena o valor
+                                            const newClientId = value === "none" ? "" : value;
+                                            setNewProjectForm(prev => ({ ...prev, clientId: newClientId }));
+                                        }}
+                                        disabled={isSubmittingModal}
+                                    >
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue placeholder="Nenhum cliente associado" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {/* <-- CORREÇÃO AQUI --> */}
+                                            <SelectItem value="none">Nenhum cliente associado</SelectItem>
+                                            {clientList.map(client => (
+                                                <SelectItem key={client.id} value={String(client.id)}>
+                                                    {client.nome}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" disabled={isSubmittingModal}>Cancelar</Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isSubmittingModal || !newProjectForm.name}>
+                                {isSubmittingModal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                {isSubmittingModal ? 'Criando...' : 'Criar'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- NOVO MODAL: CRIAR CLIENTE --- */}
+            <Dialog open={isCreateClientModalOpen} onOpenChange={setIsCreateClientModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Criar Novo Cliente</DialogTitle>
+                        <DialogDescription>
+                            Insira os dados para criar um novo usuário com a função "cliente".
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateClientSubmit}>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="client-name">Nome Completo *</Label>
+                                <Input
+                                    id="client-name"
+                                    value={newClientForm.name}
+                                    onChange={(e) => setNewClientForm(prev => ({ ...prev, name: e.target.value }))}
+                                    required
+                                    disabled={isSubmittingModal}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="client-email">Email *</Label>
+                                <Input
+                                    id="client-email"
+                                    type="email"
+                                    value={newClientForm.email}
+                                    onChange={(e) => setNewClientForm(prev => ({ ...prev, email: e.target.value }))}
+                                    required
+                                    disabled={isSubmittingModal}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="client-password">Senha *</Label>
+                                <Input
+                                    id="client-password"
+                                    type="password"
+                                    value={newClientForm.password}
+                                    onChange={(e) => setNewClientForm(prev => ({ ...prev, password: e.target.value }))}
+                                    required
+                                    disabled={isSubmittingModal}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="client-password-conf">Confirmar Senha *</Label>
+                                <Input
+                                    id="client-password-conf"
+                                    type="password"
+                                    value={newClientForm.password_confirmation}
+                                    onChange={(e) => setNewClientForm(prev => ({ ...prev, password_confirmation: e.target.value }))}
+                                    required
+                                    disabled={isSubmittingModal}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" disabled={isSubmittingModal}>Cancelar</Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isSubmittingModal}>
+                                {isSubmittingModal ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                                {isSubmittingModal ? 'Salvando...' : 'Salvar Cliente'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
