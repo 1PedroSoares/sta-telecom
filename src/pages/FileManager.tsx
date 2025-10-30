@@ -243,63 +243,57 @@ useEffect(() => {
             setIsLoadingData(true);
             try {
                 let rootFolder: FolderNode | null = null;
+                
+                // --- SUBSTITUA A LÓGICA 'if/else' GESTOR/CLIENTE POR ISTO ---
 
-              if (user.role === 'gestor') {
+                let projetosRaizDaApi: ApiProjeto[] = [];
+                let rootName: string = '';
+
+                if (user.role === 'gestor') {
                     console.log("FileManager: Fetching data for GESTOR (Root Level)");
-                    // A API /projetos agora já retorna apenas o nível raiz devido à alteração no controller
                     const response = await api.get('/projetos');
-                    const projetosRaizDaApi = response.data.data; // Assumindo wrapping
-
-                  const rootProjectFolders: FolderNode[] = projetosRaizDaApi.map((proj: ApiProjeto) => {
-                        // --- INÍCIO DA LÓGICA DE VALIDAÇÃO DE DATA ---
-                        const apiDate = proj.criado_em; // Data vinda da API
-                        const parsedDate = new Date(apiDate); // Tenta converter
-
-                        // Verifica se a data da API existe E se é uma data válida
-                        const validModifiedAt = (apiDate && !isNaN(parsedDate.getTime()))
-                            ? apiDate // Se for válida, usa a data da API
-                            : new Date().toISOString(); // Senão (null, "0000-00-00"), usa a data de AGORA
-                        // --- FIM DA LÓGICA DE VALIDAÇÃO ---
-
-                        return {
-                            id: String(proj.id),
-                            name: proj.nome,
-                            type: 'folder',
-                            path: `/${String(proj.id)}`, // Path de nível 1
-                            author: proj.cliente?.nome || 'Gestor',
-                            modifiedAt: validModifiedAt, // <-- USA A DATA VALIDADA
-                            size: 0,
-                            children: [],
-                        };
-                    });
-
-                    rootFolder = {
-                        id: 'root', name: 'Todos os Projetos', type: 'folder', path: '/',
-                        author: 'Admin', modifiedAt: new Date().toISOString(), size: 0,
-                        children: rootProjectFolders, // Apenas pastas raiz aqui
-                    };
-
+                    projetosRaizDaApi = response.data.data;
+                    rootName = 'Todos os Projetos';
                 } else if (user.role === 'cliente') {
-                    // --- LÓGICA ADICIONADA PARA CLIENTE ---
-                    console.log("FileManager: Fetching data for CLIENTE");
-                    const response = await api.get('/meu-projeto');
-                    const projetoData = response.data.data;
-
-                    if (projetoData) {
-                        // Usa a função para transformar a resposta completa
-                        // Certifique-se que transformApiProjetoToFolderNode está definida/importada
-                        rootFolder = transformApiProjetoToFolderNode(projetoData);
-                        rootFolder.name = projetoData.nome || 'Meu Projeto'; // Ajusta nome da raiz
-                    } else {
-                        // Cliente sem projeto
-                        toast({ title: "Nenhum projeto encontrado", variant: "default" });
-                        rootFolder = {
-                            id: 'root-empty', name: 'Meu Projeto (Vazio)', type: 'folder', path: '/',
-                            author: user.nome || 'Cliente', modifiedAt: new Date().toISOString(),
-                            size: 0, children: []
-                        };
-                    }
+                    console.log("FileManager: Fetching data for CLIENTE (Root Level)");
+                    // Esta rota AGORA retorna '{"data": [projeto]}' ou '{"data": []}'
+                    const response = await api.get('/meu-projeto'); 
+                    projetosRaizDaApi = response.data.data;
+                    rootName = 'Meus Arquivos';
                 }
+
+                // --- LÓGICA UNIFICADA (Para Gestor E Cliente) ---
+                // Mapeia a lista de projetos (seja 0, 1 ou N)
+                const rootProjectFolders: FolderNode[] = projetosRaizDaApi.map((proj: ApiProjeto) => {
+                    const apiDate = proj.criado_em; 
+                    const parsedDate = new Date(apiDate);
+                    const validModifiedAt = (apiDate && !isNaN(parsedDate.getTime()))
+                        ? apiDate 
+                        : new Date().toISOString();
+
+                    return {
+                        id: String(proj.id),
+                        name: proj.nome,
+                        type: 'folder',
+                        path: `/${String(proj.id)}`, // Path de nível 1 (ex: /1, /30)
+                        author: proj.cliente?.nome || (user.role === 'gestor' ? 'Gestor' : user.nome),
+                        modifiedAt: validModifiedAt,
+                        size: proj.size || 0, // 'size' agora vem da API
+                        children: [], // Filhos só são carregados ao clicar
+                    };
+                });
+
+                // Cria a pasta raiz virtual
+                rootFolder = {
+                    id: 'root',
+                    name: rootName, // Nome dinâmico
+                    type: 'folder',
+                    path: '/',
+                    author: 'Admin',
+                    modifiedAt: new Date().toISOString(),
+                    size: 0, 
+                    children: rootProjectFolders, // Adiciona os projetos mapeados
+                };
 
                 // Atualiza os estados se rootFolder foi definido
                 if (rootFolder) {
