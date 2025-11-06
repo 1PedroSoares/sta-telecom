@@ -16,6 +16,12 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+
+       'react/jsx-runtime': path.resolve('./node_modules/react/jsx-runtime.js'),
+      'react/jsx-dev-runtime': path.resolve('./node_modules/react/jsx-dev-runtime.js'),
     },
+  },
+      optimizeDeps: {
+    include: ['react', 'react-dom'],
   },
 }));
